@@ -1228,17 +1228,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
       >
         {/* 顶部导航栏 - Tensor.Art 风格 */}
         <div
+          className=""
           style={{
             width: '100%',
             padding: '12px 24px',
             display: 'grid',
             gridTemplateColumns: 'auto 1fr auto',
             alignItems: 'flex-start',
-            borderBottom: 'none',
-            background: 'transparent',
-            backdropFilter: 'none',
-            position: 'relative',
-            zIndex: 100,
+            borderBottom: `1px solid ${colors.stroke.primary}`,
+            background: colors.background.primary,
+            backdropFilter: 'blur(20px)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 1100,
           }}
         >
           {/* 左侧：菜单按钮 + Logo */}

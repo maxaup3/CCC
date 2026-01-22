@@ -741,7 +741,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const [detailPanelLayer, setDetailPanelLayer] = useState<ImageLayer | null>(null);
   const [detailPanelAnchor, setDetailPanelAnchor] = useState<{ x: number; y: number } | null>(null); // 用于 popover/tooltip 的锚点位置
   const [detailPanelLayerPosition, setDetailPanelLayerPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // 用于 tooltip 的图层位置
-  const [detailPanelManualClosed, setDetailPanelManualClosed] = useState(false); // 用户是否手动关闭了详情面板
+  const [detailPanelManualClosed, setDetailPanelManualClosed] = useState(true); // 默认不自动打开详情面板，只有点击info按钮才打开
 
   // 当选中图片变化时，自动显示/隐藏详情面板
   useEffect(() => {

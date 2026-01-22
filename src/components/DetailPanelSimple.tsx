@@ -46,7 +46,7 @@ const DetailPanelSimple: React.FC<DetailPanelSimpleProps> = ({ layer, onClose })
         maxHeight: 'calc(100vh - 100px)',
         background: bgColor,
         border: `1px solid ${borderColor}`,
-        borderRadius: 12,
+        borderRadius: 10,
         boxShadow: isLight
           ? '0 4px 24px rgba(0, 0, 0, 0.08)'
           : '0 4px 24px rgba(0, 0, 0, 0.3)',
@@ -56,63 +56,45 @@ const DetailPanelSimple: React.FC<DetailPanelSimpleProps> = ({ layer, onClose })
         animation: 'slideIn 0.2s ease',
       }}
     >
-      {/* 紧凑的 Header */}
+      {/* 紧凑的 Header - 与 LayerPanel 保持一致 */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 12px',
+          padding: '8px 8px',
+          height: 44,
+          flexShrink: 0,
           borderBottom: `1px solid ${borderColor}`,
         }}
       >
         <span
           style={{
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 600,
             color: textPrimary,
-            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+            fontFamily: 'SF Pro Display, -apple-system, sans-serif',
           }}
         >
           {layer.name || '图片详情'}
         </span>
-        <button
+        {/* 关闭按钮 - 与 LayerPanel 保持一致 */}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
           onClick={onClose}
-          style={{
-            width: 20,
-            height: 20,
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 4,
-            transition: 'background 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = hoverBg;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
+          style={{ cursor: 'pointer', transition: 'opacity 0.2s', flexShrink: 0 }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
-          <img
-            src={iconClose}
-            alt="关闭"
-            style={{
-              width: 12,
-              height: 12,
-              filter: isLight ? 'brightness(0.3)' : 'brightness(0) invert(1)',
-              opacity: 0.6,
-            }}
-          />
-        </button>
+          <path d="M4 4L12 12M12 4L4 12" stroke={textPrimary} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
       </div>
 
       {/* Content */}
-      <div style={{ padding: 12, overflowY: 'auto', maxHeight: 'calc(100vh - 160px)' }}>
+      <div style={{ padding: 8, overflowY: 'auto', maxHeight: 'calc(100vh - 160px)' }}>
         {/* 提示词 - 可展开 */}
         {layer.generationConfig?.prompt && (
           <div style={{ marginBottom: 12 }}>

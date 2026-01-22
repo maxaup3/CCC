@@ -206,7 +206,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
           backdropFilter: theme.panelBackdrop,
           border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
           borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
-          borderRadius: parseInt(theme.panelBorderRadius),
+          borderRadius: 10,
           boxShadow: theme.panelShadow,
           display: 'flex',
           flexDirection: 'column',
@@ -221,23 +221,23 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 8px', // 精确匹配设计稿 (layout_ITTQ9K: x:8, y:10, 高度24)
+          padding: '8px 8px',
           height: 44,
           flexShrink: 0,
           borderBottom: `1px solid ${Colors.border.default}`,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {/* 图层图标 */}
           <img
             src={layersIcon}
             alt="Layers"
-            width={20}
-            height={20}
+            width={16}
+            height={16}
             style={{ flexShrink: 0 }}
           />
           <span style={{
-            fontSize: Typography.englishHeading.fontSize.medium, // 16px
+            fontSize: 14,
             fontWeight: Typography.englishHeading.fontWeight,
             color: Colors.text.primary,
             fontFamily: Typography.englishHeading.fontFamily
@@ -247,16 +247,16 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
         </div>
         {/* 折叠图标 - 在右侧 */}
         <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
           fill="none"
           onClick={onClose}
           style={{ cursor: 'pointer', transition: 'opacity 0.2s', flexShrink: 0 }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         >
-          <path d="M5 5L15 15M15 5L5 15" stroke={Colors.text.primary} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M4 4L12 12M12 4L4 12" stroke={Colors.text.primary} strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
 

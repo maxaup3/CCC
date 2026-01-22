@@ -3499,8 +3499,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 disabled={!isEnabled}
                 style={{
                   position: 'relative',
-                  width: 68,
-                  height: 29,
+                  width: 85,
+                  height: 36,
                   background: isLightTheme
                     ? 'linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.02) 100%)'
                     : 'linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 100%)',

@@ -36,6 +36,7 @@ function AppContent() {
   const [projectName, setProjectName] = useState('Untitled');
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isDetailsManualClosed, setIsDetailsManualClosed] = useState(false); // 用户是否手动关闭了详情面板
   const [detailPanelAnchor, setDetailPanelAnchor] = useState<{ x: number; y: number } | null>(null); // 用于 popover 的锚点位置
   const [isBottomDialogExpanded, setIsBottomDialogExpanded] = useState(true); // 默认展开
   const [generationTasks, setGenerationTasks] = useState<GenerationTask[]>([]);

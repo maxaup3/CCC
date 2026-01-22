@@ -741,6 +741,26 @@ const Canvas: React.FC<CanvasProps> = ({
   const [detailPanelLayer, setDetailPanelLayer] = useState<ImageLayer | null>(null);
   const [detailPanelAnchor, setDetailPanelAnchor] = useState<{ x: number; y: number } | null>(null); // 用于 popover/tooltip 的锚点位置
   const [detailPanelLayerPosition, setDetailPanelLayerPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null); // 用于 tooltip 的图层位置
+  const [detailPanelManualClosed, setDetailPanelManualClosed] = useState(false); // 用户是否手动关闭了详情面板
+
+  // 当选中图片变化时，自动显示/隐藏详情面板
+  useEffect(() => {
+    if (selectedLayerId) {
+      // 选中单个图片时，如果没有手动关闭，则显示详情面板
+      const layer = layers.find(l => l.id === selectedLayerId);
+      if (layer && !detailPanelManualClosed) {
+        setDetailPanelLayer(layer);
+        setShowDetailPanel(true);
+      } else if (layer && showDetailPanel) {
+        // 即使手动关闭了，也更新当前显示的图层信息
+        setDetailPanelLayer(layer);
+      }
+    } else {
+      // 取消选中时，隐藏详情面板
+      setShowDetailPanel(false);
+      setDetailPanelLayer(null);
+    }
+  }, [selectedLayerId, layers, detailPanelManualClosed]);
 
   // 右键菜单状态
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -4390,6 +4410,7 @@ const Canvas: React.FC<CanvasProps> = ({
                   height: selectedLayer.height,
                 });
                 setShowDetailPanel(true);
+                setDetailPanelManualClosed(false); // 重置手动关闭状态
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.opacity = '0.7';
@@ -4596,6 +4617,7 @@ const Canvas: React.FC<CanvasProps> = ({
           setDetailPanelLayer(null);
           setDetailPanelAnchor(null);
           setDetailPanelLayerPosition(null);
+          setDetailPanelManualClosed(true); // 用户手动关闭
         };
 
         return (

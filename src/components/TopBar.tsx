@@ -72,14 +72,12 @@ const TopBar: React.FC<TopBarProps> = ({
   // 菜单项配置
   const menuItems = [
     { label: '主页', shortcut: '', action: onGoHome, dividerAfter: false },
-    { label: '项目库', shortcut: '', action: onGoToProjects, dividerAfter: true },
     { label: '新建项目', shortcut: '', action: onNewProject, dividerAfter: false },
     { label: '删除当前项目', shortcut: '', action: onDeleteProject, dividerAfter: true },
     { label: '导入图片', shortcut: '', action: onImportImage, dividerAfter: true },
     { label: '撤销', shortcut: '⌘ Z', action: onUndo, dividerAfter: false },
-    { label: '重做', shortcut: '⌘ ⇧ Z', action: onRedo, dividerAfter: false },
-    { label: '复制对象', shortcut: '⌘ D', action: onDuplicate, dividerAfter: true },
-    { label: '显示画布所有图片', shortcut: '⇧ 1', action: onShowAllImages, dividerAfter: true },
+    { label: 'Redo', shortcut: '⌘ ⇧ Z', action: onRedo, dividerAfter: false },
+    { label: '复制画布', shortcut: '⌘ D', action: onDuplicate, dividerAfter: true },
     { label: '放大', shortcut: '⌘ +', action: () => onZoomChange(Math.min(200, zoom + 10)), dividerAfter: false },
     { label: '缩小', shortcut: '⌘ -', action: () => onZoomChange(Math.max(10, zoom - 10)), dividerAfter: false },
   ];

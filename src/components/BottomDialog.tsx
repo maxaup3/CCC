@@ -896,7 +896,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               display: 'inline-flex',
               flexDirection: 'row',
               alignItems: 'center',
-              background: isLightTheme ? '#FFFFFF' : '#3B3B3B',
+              background: isLightTheme ? '#F5F5F5' : '#3B3B3B',
               borderRadius: '12px 12px 0 0',
               alignSelf: 'flex-start',
             }}
@@ -909,7 +909,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 left: config.mode === 'image' ? 0 : '50%',
                 width: '50%',
                 height: '100%',
-                background: isLightTheme ? '#FFFFFF' : 'rgba(30, 30, 30, 1)',
+                background: isLightTheme ? '#FFFFFF' : '#2A2A2A',
                 borderRadius: '12px 12px 0 0',
                 transition: 'left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 zIndex: 0,
@@ -1001,7 +1001,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
           data-dialog-main="true"
           onClick={() => textareaRef.current?.focus()}
           style={{
-            background: isLightTheme ? '#FFFFFF' : 'rgba(30, 30, 30, 1)',
+            background: isLightTheme ? '#FFFFFF' : '#2A2A2A',
             backdropFilter: theme.panelBackdrop,
             border: 'none',
             borderRadius: isLandingPage ? '0 12px 12px 12px' : parseInt(theme.panelBorderRadius),

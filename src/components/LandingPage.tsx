@@ -1265,7 +1265,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               }}
             >
               <img
-                src="/assets/icons/fold-1.svg"
+                src="/src/assets/icons/fold-1.svg"
                 alt="Menu"
                 style={{
                   width: 24,
@@ -1278,7 +1278,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             {/* Logo */}
             <a href="/" style={{ height: 40, display: 'flex', alignItems: 'center' }}>
               <img
-                src="/assets/icons/logo.svg"
+                src="/src/assets/icons/logo.svg"
                 alt="Tensor.Art"
                 style={{
                   height: 40,
@@ -1352,7 +1352,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 cursor: 'pointer',
               }}>
                 <img
-                  src="/assets/icons/camera.svg"
+                  src="/src/assets/icons/camera.svg"
                   alt="Camera"
                   style={{
                     width: 20,
@@ -1372,7 +1372,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 cursor: 'pointer',
               }}>
                 <img
-                  src="/assets/icons/search.svg"
+                  src="/src/assets/icons/search.svg"
                   alt="Search"
                   style={{
                     width: 20,
@@ -1413,7 +1413,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   }}
                 >
                   <img
-                    src="/assets/icons/magic.svg"
+                    src="/src/assets/icons/magic.svg"
                     alt="Magic"
                     style={{
                       width: 20,
@@ -1446,7 +1446,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   }}
                 >
                   <img
-                    src="/assets/icons/arrow_down.svg"
+                    src="/src/assets/icons/arrow_down.svg"
                     alt="Dropdown"
                     style={{
                       width: 20,
@@ -1477,7 +1477,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 }}
               >
                 <img
-                  src="/assets/icons/plus.svg"
+                  src="/src/assets/icons/plus.svg"
                   alt="Plus"
                   style={{
                     width: 20,
@@ -1502,7 +1502,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               cursor: 'pointer',
             }}>
               <img
-                src="/assets/icons/pro.svg"
+                src="/src/assets/icons/pro.svg"
                 alt="Pro"
                 style={{
                   width: 36,
@@ -1523,11 +1523,11 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <div style={{
                 width: 28,
                 height: 28,
-                WebkitMaskImage: 'url(/assets/icons/discord.svg)',
+                WebkitMaskImage: 'url(/src/assets/icons/discord.svg)',
                 WebkitMaskSize: 'contain',
                 WebkitMaskRepeat: 'no-repeat',
                 WebkitMaskPosition: 'center',
-                maskImage: 'url(/assets/icons/discord.svg)',
+                maskImage: 'url(/src/assets/icons/discord.svg)',
                 maskSize: 'contain',
                 maskRepeat: 'no-repeat',
                 maskPosition: 'center',
@@ -1538,7 +1538,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             {/* Calendar */}
             <div style={{ width: 40, height: 40, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <img
-                src="/assets/icons/calendar.svg"
+                src="/src/assets/icons/calendar.svg"
                 alt="Calendar"
                 style={{
                   width: 28,
@@ -1551,7 +1551,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             {/* 通知图标（带数字） */}
             <div style={{ position: 'relative', cursor: 'pointer', width: 40, height: 40, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
               <img
-                src="/assets/icons/notification.svg"
+                src="/src/assets/icons/notification.svg"
                 alt="Notification"
                 style={{
                   width: 28,
@@ -1615,7 +1615,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   height: 20,
                 }}>
                   <img
-                    src="/assets/icons/pro_bottom.svg"
+                    src="/src/assets/icons/pro_bottom.svg"
                     alt="Pro"
                     style={{
                       width: 20,
@@ -1628,7 +1628,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               {/* 下拉箭头 */}
               <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <img
-                  src="/assets/icons/arrow_down.svg"
+                  src="/src/assets/icons/arrow_down.svg"
                   alt="Dropdown"
                   style={{
                     width: 20,

@@ -198,7 +198,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
       <div
         style={{
           position: 'absolute',
-          top: 80,
+          top: 60,
           bottom: 20,
           left: 20,
           width: 244,

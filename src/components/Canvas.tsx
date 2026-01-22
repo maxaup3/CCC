@@ -814,7 +814,7 @@ const Canvas: React.FC<CanvasProps> = ({
       onGetCanvasCenter(() => {
         // 返回画布中心坐标（画布坐标系）
         const viewWidth = window.innerWidth;
-        const viewHeight = window.innerHeight - 60;
+        const viewHeight = window.innerHeight;
         const scale = zoom / 100;
         return {
           x: (viewWidth / 2 - stagePos.x) / scale,
@@ -1048,12 +1048,13 @@ const Canvas: React.FC<CanvasProps> = ({
       ref={containerRef}
       style={{
         position: 'absolute',
-        top: 60,
+        top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        background: theme.canvasBackground,
+        background: 'transparent',
         overflow: 'hidden',
+        zIndex: 1,
       }}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -1105,7 +1106,7 @@ const Canvas: React.FC<CanvasProps> = ({
       <Stage
         ref={stageRef}
         width={window.innerWidth}
-        height={window.innerHeight - 60}
+        height={window.innerHeight}
         x={stagePos.x}
         y={stagePos.y}
         scaleX={zoom / 100}
@@ -1114,25 +1115,15 @@ const Canvas: React.FC<CanvasProps> = ({
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
-        style={{ cursor: isDragging ? 'grabbing' : editMode === 'edit' ? 'crosshair' : 'default' }}
+        style={{ cursor: isDragging ? 'grabbing' : editMode === 'edit' ? 'crosshair' : 'default', backgroundColor: 'transparent' }}
       >
-        {/* 画布背景层 */}
-        <Layer listening={false}>
-          <Rect
-            x={-10000}
-            y={-10000}
-            width={20000}
-            height={20000}
-            fill={(getThemeStyles(themeStyle) as any).canvasBackground}
-          />
-        </Layer>
         <Layer>
           {/* 网格背景 - 小网格 + 大网格 */}
           {(() => {
             const smallGridSize = 20; // 小网格大小（画布坐标系）
             const largeGridSize = 100; // 大网格大小（画布坐标系）
             const viewWidth = window.innerWidth;
-            const viewHeight = window.innerHeight - 60;
+            const viewHeight = window.innerHeight;
             const scale = zoom / 100;
 
             // 将屏幕坐标转换为画布坐标
@@ -4325,7 +4316,7 @@ const Canvas: React.FC<CanvasProps> = ({
                 style={{
                   position: 'fixed',
                   left: screenX,
-                  top: labelTop + 60,
+                  top: labelTop,
                   height: labelHeight,
                   maxWidth: availableWidth,
                   display: 'flex',
@@ -4370,7 +4361,7 @@ const Canvas: React.FC<CanvasProps> = ({
               style={{
                 position: 'fixed',
                 left: screenX + screenWidth - 16,
-                top: labelTop + 60,
+                top: labelTop,
                 width: labelHeight,
                 height: labelHeight,
                 background: 'transparent',

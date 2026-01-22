@@ -1,6 +1,7 @@
 import React from 'react';
 import { ImageLayer } from '../types';
-import { useTheme, isLightTheme } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme } from '../contexts/ThemeContext';
+import { Colors } from '../styles/constants';
 
 interface ImageDetailsProps {
   layer: ImageLayer;
@@ -10,17 +11,18 @@ interface ImageDetailsProps {
 
 const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpdate: _onLayerUpdate }) => {
   const { themeStyle } = useTheme();
+  const theme = getThemeStyles(themeStyle);
   const isLight = isLightTheme(themeStyle);
 
-  // 主题颜色
-  const bgColor = isLight ? 'rgba(255, 255, 255, 0.95)' : '#2A2A2A';
-  const borderColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)';
-  const textPrimary = isLight ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)';
-  const textSecondary = isLight ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)';
-  const textTertiary = isLight ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.65)';
-  const cardBg = isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)';
-  const cardBgLight = isLight ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.06)';
-  const hoverBg = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.1)';
+  // 使用与 LayerPanel 相同的主题背景
+  const bgColor = theme.panelBackground;
+  const borderColor = theme.panelBorder;
+  const textPrimary = Colors.text.primary;
+  const textSecondary = Colors.text.secondary;
+  const textTertiary = Colors.text.tertiary;
+  const cardBg = Colors.background.secondary;
+  const cardBgLight = Colors.background.tertiary;
+  const hoverBg = Colors.background.hover;
   const iconColor = isLight ? '#333333' : '#FFFFFF';
 
   return (
@@ -30,19 +32,19 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
         top: 80,
         right: 20,
         width: 244,
-        maxHeight: 'calc(100vh - 200px)',
+        height: 'calc(100vh - 80px)',
+        maxHeight: 'calc(100vh - 80px)',
         background: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: 10,
-        boxShadow: isLight
-          ? '0px 4px 12px rgba(0, 0, 0, 0.1)'
-          : '0px 4px 12px rgba(0, 0, 0, 0.3)',
+        border: themeStyle === 'cyberpunk' ? 'none' : borderColor,
+        borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
+        borderRadius: parseInt(theme.panelBorderRadius),
+        boxShadow: theme.panelShadow,
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
         overflow: 'hidden',
         transition: 'all 0.3s ease-in-out',
-        backdropFilter: 'blur(20px)',
+        backdropFilter: theme.panelBackdrop,
       }}
     >
       {/* 标题栏 */}
@@ -51,10 +53,10 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 16px',
-          borderBottom: `1px solid ${borderColor}`,
-          height: 40,
+          padding: '10px 8px',
+          height: 44,
           flexShrink: 0,
+          borderBottom: `1px solid ${Colors.border.default}`,
         }}
       >
         <span style={{ fontSize: 16, fontWeight: 600, color: textPrimary, fontFamily: 'SF Pro Display, -apple-system, sans-serif' }}>
@@ -83,13 +85,13 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
       </div>
 
       {/* 内容区域 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {/* 文件名 */}
         <div
           style={{
-            padding: 12,
+            padding: 8,
             background: cardBg,
-            borderRadius: 6,
+            borderRadius: 4,
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 400, color: textSecondary, marginBottom: 4, fontFamily: 'Roboto, -apple-system, sans-serif' }}>
@@ -103,9 +105,9 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
         {/* 描述 */}
         <div
           style={{
-            padding: '8px 12px 12px',
+            padding: 8,
             background: cardBg,
-            borderRadius: 6,
+            borderRadius: 4,
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 400, color: textSecondary, marginBottom: 8, fontFamily: 'Roboto, -apple-system, sans-serif' }}>
@@ -139,20 +141,20 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
           style={{
             padding: 8,
             background: cardBg,
-            borderRadius: 8,
+            borderRadius: 4,
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 400, color: textSecondary, marginBottom: 8, fontFamily: 'Roboto, -apple-system, sans-serif' }}>
             Media
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                padding: '6px 10px',
+                padding: '6px 8px',
                 background: cardBgLight,
-                borderRadius: 8,
+                borderRadius: 4,
               }}
             >
               <span style={{ fontSize: 11, fontWeight: 400, color: textSecondary, fontFamily: 'Roboto, -apple-system, sans-serif' }}>Aspect Ratio</span>
@@ -164,9 +166,9 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                padding: '6px 10px',
+                padding: '6px 8px',
                 background: cardBgLight,
-                borderRadius: 8,
+                borderRadius: 4,
               }}
             >
               <span style={{ fontSize: 11, fontWeight: 400, color: textSecondary, fontFamily: 'Roboto, -apple-system, sans-serif' }}>Resolution</span>
@@ -178,7 +180,7 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                padding: '6px 10px',
+                padding: '6px 8px',
                 background: cardBgLight,
                 borderRadius: 4,
               }}

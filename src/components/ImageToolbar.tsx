@@ -86,8 +86,8 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
   if (selectedLayers.length === 0 || !layerPosition) return null;
 
   // Convert canvas coordinates to screen coordinates
-  // Canvas 容器从 top: 60 开始，所以需要加上 60px 偏移
-  const canvasTopOffset = 60;
+  // Canvas 容器从 top: 0 开始，所以不需要偏移
+  const canvasTopOffset = 0;
   const scale = zoom / 100;
   const screenX = layerPosition.x * scale + stagePos.x;
   const screenY = layerPosition.y * scale + stagePos.y + canvasTopOffset;
@@ -195,7 +195,7 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
         borderRadius: parseInt(theme.panelBorderRadius),
         padding: '4px',
         boxShadow: theme.panelShadow,
-        zIndex: 500,
+        zIndex: 2000,
         height: 44,
         transition: 'all 0.3s ease',
       }}
@@ -467,7 +467,7 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: 500,
+            zIndex: 2001,
           }}
           onClick={() => {
             setShowQuickEdit(false);
@@ -479,7 +479,7 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
         <div
           style={{
             position: 'fixed',
-            top: `${imageBottom + 24}px`,
+            top: `${imageBottom - 40}px`,
             left: `${toolbarX}px`,
             transform: 'translateX(-50%)',
             backgroundColor: isLight ? 'rgba(245, 245, 245, 1)' : 'rgba(30, 30, 30, 0.95)',
@@ -488,7 +488,7 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
             padding: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
             backdropFilter: 'blur(10px)',
-            zIndex: 501,
+            zIndex: 2002,
             width: 400,
             display: 'flex',
             flexDirection: 'column',

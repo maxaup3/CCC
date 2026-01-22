@@ -1121,7 +1121,9 @@ function AppContent() {
         height: '100vh',
         position: 'relative',
         overflow: 'hidden',
-        animation: 'canvasFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+        animation: 'canvasFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        zIndex: 0,
+        background: 'transparent',
       }}>
       <style>{`
         @keyframes canvasFadeIn {

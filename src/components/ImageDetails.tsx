@@ -15,8 +15,6 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
   const isLight = isLightTheme(themeStyle);
 
   // 使用与 LayerPanel 相同的主题背景
-  const bgColor = theme.panelBackground;
-  const borderColor = theme.panelBorder;
   const textPrimary = Colors.text.primary;
   const textSecondary = Colors.text.secondary;
   const textTertiary = Colors.text.tertiary;
@@ -34,8 +32,9 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
         width: 244,
         height: 'calc(100vh - 80px)',
         maxHeight: 'calc(100vh - 80px)',
-        background: bgColor,
-        border: themeStyle === 'cyberpunk' ? 'none' : borderColor,
+        background: theme.panelBackground,
+        backdropFilter: theme.panelBackdrop,
+        border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
         borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
         borderRadius: parseInt(theme.panelBorderRadius),
         boxShadow: theme.panelShadow,
@@ -43,9 +42,8 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
         flexDirection: 'column',
         zIndex: 1000,
         overflow: 'hidden',
-        transition: 'all 0.3s ease-in-out',
-        backdropFilter: theme.panelBackdrop,
-      }}
+        transition: 'all 0.3s ease',
+      } as React.CSSProperties}
     >
       {/* 标题栏 */}
       <div

@@ -6,10 +6,10 @@
 </mask>
 <g mask="url(#mask0_17874_136371)">
 <g filter="url(#filter0_d_17874_136371)">
-<circle cx="5" cy="20" r="2.5" fill="black" fill-opacity="0.01" shape-rendering="crispEdges"/>
+<circle cx="5" cy="20" r="2.5" fill="currentColor" fill-opacity="0.01" shape-rendering="crispEdges"/>
 </g>
 <g filter="url(#filter1_d_17874_136371)">
-<path d="M17 2.08C17 1.2415 17.9699 0.775323 18.6247 1.29913L21.0239 3.21851C21.5243 3.61883 21.5243 4.37992 21.0239 4.78025L18.6247 6.69962C17.9699 7.22343 17 6.75726 17 5.91875V2.08Z" fill="black" fill-opacity="0.01" shape-rendering="crispEdges"/>
+<path d="M17 2.08C17 1.2415 17.9699 0.775323 18.6247 1.29913L21.0239 3.21851C21.5243 3.61883 21.5243 4.37992 21.0239 4.78025L18.6247 6.69962C17.9699 7.22343 17 6.75726 17 5.91875V2.08Z" fill="currentColor" fill-opacity="0.01" shape-rendering="crispEdges"/>
 </g>
 </g>
 <foreignObject x="0.5" y="15.5" width="9" height="9"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(1px);clip-path:url(#bgblur_0_17874_136371_clip_path);height:100%;width:100%"></div></foreignObject><g filter="url(#filter2_i_17874_136371)" data-figma-bg-blur-radius="2">

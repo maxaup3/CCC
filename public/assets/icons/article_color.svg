@@ -11,7 +11,7 @@
 <path d="M6.32031 21.9741C6.4658 21.9912 6.61382 22 6.76389 22H19.4436C21.4073 22 22.9992 20.4081 22.9992 18.4444C22.9992 18.199 22.8002 18 22.5547 18H8.49787C8.22173 18 7.99787 18.2239 7.99787 18.5V20C7.99787 20.9948 7.27157 21.82 6.32031 21.9741Z" fill="#1AFF9F" fill-opacity="0.8"/>
 </g>
 <path d="M1.5 6H4V3C4 2.44772 3.55228 2 3 2C1.89543 2 1 2.89543 1 4V5.5C1 5.77614 1.22386 6 1.5 6Z" fill="#2491FF"/>
-<path d="M1.5 6H4V3C4 2.44772 3.55228 2 3 2C1.89543 2 1 2.89543 1 4V5.5C1 5.77614 1.22386 6 1.5 6Z" fill="black" fill-opacity="0.2"/>
+<path d="M1.5 6H4V3C4 2.44772 3.55228 2 3 2C1.89543 2 1 2.89543 1 4V5.5C1 5.77614 1.22386 6 1.5 6Z" fill="currentColor" fill-opacity="0.2"/>
 <defs>
 <filter id="filter0_d_17875_184235" x="5" y="4" width="15" height="8" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>

@@ -1,6 +1,6 @@
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M5 8H19V20H5V8Z" fill="#2491FF"/>
-<path d="M5 8H19V20H5V8Z" fill="black" fill-opacity="0.2"/>
+<path d="M5 8H19V20H5V8Z" fill="currentColor" fill-opacity="0.2"/>
 <path d="M10 14C10 12.8954 10.8954 12 12 12C13.1046 12 14 12.8954 14 14V17C14 18.1046 13.1046 19 12 19C10.8954 19 10 18.1046 10 17V14Z" fill="#1AFF9F" fill-opacity="0.8"/>
 <foreignObject x="4" y="1" width="16" height="16"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(1px);clip-path:url(#bgblur_0_19663_117550_clip_path);height:100%;width:100%"></div></foreignObject><g filter="url(#filter0_i_19663_117550)" data-figma-bg-blur-radius="2">
 <path d="M6 9C6 5.68629 8.68629 3 12 3C15.3137 3 18 5.68629 18 9C18 12.3137 15.3137 15 12 15C8.68629 15 6 12.3137 6 9Z" fill="#1AFF9F" fill-opacity="0.95"/>

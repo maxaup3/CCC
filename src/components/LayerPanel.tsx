@@ -198,11 +198,10 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
       <div
         style={{
           position: 'absolute',
+          top: 80,
           bottom: 20,
           left: 20,
           width: 244,
-          height: 'calc(100vh - 80px)',
-          maxHeight: 'calc(100vh - 80px)',
           background: theme.panelBackground,
           backdropFilter: theme.panelBackdrop,
           border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,

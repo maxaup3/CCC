@@ -896,7 +896,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               display: 'inline-flex',
               flexDirection: 'row',
               alignItems: 'center',
-              background: isLightTheme ? '#F5F5F5' : '#3B3B3B',
+              background: isLightTheme ? '#FFFFFF' : '#3B3B3B',
               borderRadius: '12px 12px 0 0',
               alignSelf: 'flex-start',
             }}

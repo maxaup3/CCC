@@ -1006,7 +1006,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
             border: 'none',
             borderRadius: isLandingPage ? '0 12px 12px 12px' : parseInt(theme.panelBorderRadius),
             boxShadow: theme.panelShadow,
-            padding: 12,
+            padding: 8,
             transition: 'all 0.3s ease',
             display: 'flex',
             flexDirection: 'column',
@@ -3499,8 +3499,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 disabled={!isEnabled}
                 style={{
                   position: 'relative',
-                  width: 85,
-                  height: 36,
+                  width: 68,
+                  height: 29,
                   background: isLightTheme
                     ? 'linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.02) 100%)'
                     : 'linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 100%)',

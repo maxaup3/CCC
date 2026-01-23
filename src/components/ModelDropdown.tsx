@@ -120,6 +120,21 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                 {model.description || '模型一句话介绍'}
               </span>
             </div>
+            {/* 预估时间 */}
+            {model.estimatedTime && (
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 400,
+                  color: isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.4)',
+                  fontFamily: Typography.englishBody.fontFamily,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {model.estimatedTime}
+              </span>
+            )}
           </div>
         );
       })}

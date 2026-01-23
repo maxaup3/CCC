@@ -365,18 +365,19 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
           }
         }
 
-        // 图像模式：添加到 referenceImages 数组（最多10张）
+        // 图像模式：添加到 referenceImages 数组（根据模型限制）
         const existingImages = prev.referenceImages || [];
+        const maxImages = getMaxImages(prev.model);
 
-        // 检查是否已达到最大数量（10张）
-        if (existingImages.length >= 10) {
-          setErrorMessage('最多只能添加10张参考图片');
+        // 检查是否已达到最大数量
+        if (existingImages.length >= maxImages) {
+          setErrorMessage(`当前模型最多支持 ${maxImages} 张参考图片`);
           setTimeout(() => setErrorMessage(null), 3000);
           return prev;
         }
 
-        // 合并现有图片和新图片，限制最多10张
-        const newImages = [...existingImages, ...imageUrls].slice(0, 10);
+        // 合并现有图片和新图片，限制最多 maxImages 张
+        const newImages = [...existingImages, ...imageUrls].slice(0, maxImages);
         return {
           ...prev,
           referenceImages: newImages,
@@ -408,7 +409,17 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
   const loraHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ratios = ['16:9', '9:16', '1:1', '4:3', '3:4'];
-  
+
+  // 模型支持的最大参考图片数量配置
+  const modelMaxImages: Record<string, number> = {
+    'qwen-image-edit': 3,  // Qwen Edit 支持 0-3 张
+    'z-image': 1,          // Z-image 支持 0-1 张
+    'illustrious': 1,      // Illustrious 支持 0-1 张
+  };
+
+  // 获取当前模型支持的最大图片数量
+  const getMaxImages = (modelId: string) => modelMaxImages[modelId] ?? 1;
+
   // 模型数据
   const modelData: Model[] = [
     // 图像模型
@@ -420,6 +431,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       tags: ['Image', 'Edit'],
       isUser: false,
       isFavorite: false,
+      estimatedTime: '30s',
     },
     {
       id: 'z-image',
@@ -429,6 +441,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       tags: ['Image'],
       isUser: false,
       isFavorite: false,
+      estimatedTime: '20s',
     },
     {
       id: 'illustrious',
@@ -438,6 +451,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       tags: ['Image', 'Anime'],
       isUser: false,
       isFavorite: false,
+      estimatedTime: '25s',
     },
     // 视频模型
     {
@@ -448,6 +462,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       tags: ['Video'],
       isUser: false,
       isFavorite: false,
+      estimatedTime: '2 min',
     },
     {
       id: 'wan2.6',
@@ -457,6 +472,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       tags: ['Video'],
       isUser: false,
       isFavorite: false,
+      estimatedTime: '2 min',
     },
     {
       id: 'ltx-2',
@@ -466,6 +482,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       tags: ['Video', '4K'],
       isUser: false,
       isFavorite: false,
+      estimatedTime: '3 min',
     },
   ];
   
@@ -618,6 +635,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       referenceImages: undefined,
       imageLora: undefined,
       imageLoraWeight: 0.8, // 重置为默认值
+      imageLoras: undefined, // 重置多 Lora
       videoLora: undefined,
       videoLoraWeight: 0.8,
       videoStartFrame: undefined,
@@ -938,7 +956,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '12px 24px',
+                padding: '12px 16px',
                 borderRadius: '12px 12px 0 0',
                 cursor: 'pointer',
                 gap: 6,
@@ -977,7 +995,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '12px 24px',
+                padding: '12px 16px',
                 borderRadius: '12px 12px 0 0',
                 cursor: 'pointer',
                 gap: 6,
@@ -1046,22 +1064,30 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
             alignSelf: 'stretch',
           }}
         >
-          {/* 视频模式上传框 */}
-          {config.mode === 'video' && config.videoCapability !== 'text-to-video' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
+          {/* 对话输入框 - 与参考图片/视频帧/Lora同行 */}
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: Spacing.sm,
+              padding: 0,
+              minHeight: 24,
+            }}
+          >
+            {/* 视频模式 - 首帧上传（内联显示） */}
+            {config.mode === 'video' && config.videoCapability !== 'text-to-video' && (() => {
+              const frameHeight = isLandingPage ? 120 : 72;
+              const frameWidth = Math.round(frameHeight * 2 / 3);
+
+              return (
+                <>
               {/* 首帧上传框 */}
                   <div
                     style={{
                       position: 'relative',
-                      width: 56,
-                      height: 84,
+                      width: frameWidth,
+                      height: frameHeight,
                       flexShrink: 0,
                     }}
                     onMouseEnter={() => setHoveredVideoStartFrame(true)}
@@ -1073,8 +1099,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                             <div
                               style={{
                                 position: 'relative',
-                                width: 56,
-                                height: 84,
+                                width: frameWidth,
+                                height: frameHeight,
                                 borderRadius: BorderRadius.small,
                                 overflow: 'hidden',
                                 background: Colors.background.primary,
@@ -1122,26 +1148,77 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                 </svg>
                               </button>
                             )}
+
+                            {/* 添加尾帧按钮 - 右下角圆形加号，仅在图生视频模式且没有尾帧时显示 */}
+                            {config.videoCapability === 'image-to-video' && !config.videoEndFrame && (
+                              <label
+                                style={{
+                                  position: 'absolute',
+                                  bottom: -4,
+                                  right: -4,
+                                  width: 20,
+                                  height: 20,
+                                  background: '#38BDFF',
+                                  border: 'none',
+                                  borderRadius: '50%',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  padding: 0,
+                                  zIndex: 1001,
+                                  pointerEvents: 'auto',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                }}
+                              >
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  style={{ display: 'none' }}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        const url = event.target?.result as string;
+                                        // 上传尾帧并自动切换到首尾帧模式
+                                        setConfig(prev => ({
+                                          ...prev,
+                                          videoEndFrame: url,
+                                          videoCapability: 'first-last-frame',
+                                        }));
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M12 5V19M5 12H19" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </label>
+                            )}
                           </>
                         ) : (
                       // 上传按钮
                       <label
                         style={{
-                          width: 56,
-                          height: 84,
+                          width: frameWidth,
+                          height: frameHeight,
                           borderRadius: BorderRadius.small,
-                          border: `1px dashed ${isLightTheme ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.3)'}`,
+                          border: `1px solid ${isLightTheme ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)'}`,
                           display: 'flex',
+                          flexDirection: 'column',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          gap: 4,
                           cursor: 'pointer',
                           transition: 'all 0.2s',
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)';
+                          e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.25)';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.3)';
+                          e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)';
                         }}
                       >
                         <input
@@ -1160,9 +1237,16 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                             }
                           }}
                         />
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 5V19M5 12H19" stroke="rgba(255, 255, 255, 0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 5V19M5 12H19" stroke={isLightTheme ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.4)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
+                        <span style={{
+                          fontSize: 11,
+                          color: isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.45)',
+                          fontFamily: Typography.chinese.fontFamily,
+                        }}>
+                          {config.videoCapability === 'first-last-frame' ? '首帧' : '添加'}
+                        </span>
                       </label>
                         )}
                   </div>
@@ -1179,8 +1263,9 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         style={{
                           flexShrink: 0,
                           cursor: 'pointer',
-                          filter: isLightTheme ? 'brightness(0.3)' : 'brightness(0) invert(1)',
-                          opacity: 0.85,
+                          alignSelf: 'center',
+                          filter: isLightTheme ? 'brightness(0.5)' : 'brightness(0) invert(1)',
+                          opacity: 0.35,
                         }}
                         onClick={() => {
                           // 交换首尾帧
@@ -1196,8 +1281,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                       <div
                         style={{
                           position: 'relative',
-                          width: 56,
-                          height: 84,
+                          width: frameWidth,
+                          height: frameHeight,
                           flexShrink: 0,
                         }}
                         onMouseEnter={() => setHoveredVideoEndFrame(true)}
@@ -1209,8 +1294,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                 <div
                                   style={{
                                     position: 'relative',
-                                    width: 56,
-                                    height: 84,
+                                    width: frameWidth,
+                                    height: frameHeight,
                                     borderRadius: BorderRadius.small,
                                     overflow: 'hidden',
                                     background: Colors.background.primary,
@@ -1260,24 +1345,26 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                 )}
                               </>
                             ) : (
-                          // 上传按钮
+                          // 尾帧上传按钮
                           <label
                             style={{
-                              width: 56,
-                              height: 84,
+                              width: frameWidth,
+                              height: frameHeight,
                               borderRadius: BorderRadius.small,
-                              border: `1px dashed ${isLightTheme ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.3)'}`,
+                              border: `1px solid ${isLightTheme ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)'}`,
                               display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
+                              gap: 4,
                               cursor: 'pointer',
                               transition: 'all 0.2s',
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)';
+                              e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.25)';
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.3)';
+                              e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.12)';
                             }}
                           >
                             <input
@@ -1296,1004 +1383,155 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                 }
                               }}
                             />
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                              <path d="M12 5V19M5 12H19" stroke={isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 5V19M5 12H19" stroke={isLightTheme ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.4)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
+                            <span style={{
+                              fontSize: 11,
+                              color: isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.45)',
+                              fontFamily: Typography.chinese.fontFamily,
+                            }}>
+                              尾帧
+                            </span>
                           </label>
                             )}
                       </div>
                     </>
                   )}
 
-              {/* 分割线 - 在上传框和Lora之间 */}
-              {config.videoLora && (
-                <div
-                  style={{
-                    width: 1,
-                    height: 16,
-                    background: isLightTheme ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.2)',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
+                </>
+              );
+            })()}
 
-              {/* Video Lora权重显示 */}
-              {config.videoLora && (() => {
-                const selectedLoraModel = modelData.find(m => m.id === config.videoLora);
-                const isHovered = hoveredLoraId === config.videoLora;
 
-                return (
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: 56,
-                      height: 84,
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={() => {
-                      if (loraHoverTimeoutRef.current) {
-                        clearTimeout(loraHoverTimeoutRef.current);
-                        loraHoverTimeoutRef.current = null;
-                      }
-                      setHoveredLoraId(config.videoLora!);
-                    }}
-                    onMouseLeave={(e) => {
-                      const relatedTarget = e.relatedTarget as HTMLElement;
-                      if (!relatedTarget || !relatedTarget.closest('[data-lora-tooltip]')) {
-                        if (loraHoverTimeoutRef.current) {
-                          clearTimeout(loraHoverTimeoutRef.current);
-                        }
-                        loraHoverTimeoutRef.current = setTimeout(() => {
-                          setHoveredLoraId(null);
-                        }, 100);
-                      }
-                    }}
-                  >
-                    {/* 内容容器 */}
+
+            {/* 图像模式 - 参考图片（内联显示） */}
+            {config.mode === 'image' && config.referenceImages && config.referenceImages.length > 0 && (() => {
+              const maxImages = getMaxImages(config.model);
+              const currentModel = modelData.find(m => m.id === config.model);
+
+              return (
+                <>
+                  {config.referenceImages.map((imageUrl, index) => {
+                    // 高度与 textarea maxHeight 一致，比例 2:3
+                    const imgHeight = isLandingPage ? 120 : 72;
+                    const imgWidth = Math.round(imgHeight * 2 / 3);
+                    const isDisabled = index >= maxImages;
+
+                    return (
                     <div
+                      key={index}
                       style={{
                         position: 'relative',
-                        width: 56,
-                        height: 84,
-                        borderRadius: BorderRadius.small,
-                        overflow: 'hidden',
-                        border: `1px solid ${Colors.border.default}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
+                        width: imgWidth,
+                        height: imgHeight,
+                        flexShrink: 0,
                       }}
+                      onMouseEnter={() => setHoveredImageIndex(index)}
+                      onMouseLeave={() => setHoveredImageIndex(null)}
                     >
-                    {/* Lora 图片或背景 */}
-                    {selectedLoraModel?.imageUrl ? (
-                      <img
-                        src={selectedLoraModel.imageUrl}
-                        alt={selectedLoraModel.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
                       <div
                         style={{
-                          width: '100%',
-                          height: '100%',
-                          background: Colors.background.tertiary,
-                        }}
-                      />
-                    )}
-
-                    {/* 半透明遮罩 */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0, 0, 0, 0.65)',
-                      }}
-                    />
-
-                    {/* 权重值 - 居中显示 */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: Typography.englishBody.fontSize.small,
-                          fontWeight: Typography.englishHeading.fontWeight,
-                          color: Colors.text.primary,
-                          fontFamily: Typography.englishHeading.fontFamily,
-                          lineHeight: '1.27em',
+                          width: imgWidth,
+                          height: imgHeight,
+                          borderRadius: BorderRadius.small,
+                          overflow: 'hidden',
+                          background: Colors.background.primary,
+                          opacity: isDisabled ? 0.4 : 1,
+                          transition: 'opacity 0.2s',
                         }}
                       >
-                        {config.videoLoraWeight?.toFixed(1) || '0.8'}
-                      </span>
-                    </div>
-                    </div>
-
-                    {/* 关闭按钮 - hover 时显示 */}
-                    {isHovered && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfig({ ...config, videoLora: undefined, videoLoraWeight: undefined });
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          width: 12,
-                          height: 12,
-                          background: Colors.text.primary,
-                          border: 'none',
-                          borderRadius: '50%',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0,
-                          zIndex: 10002,
-                          transform: 'translate(25%, -25%)',
-                          pointerEvents: 'auto',
-                        }}
-                      >
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    )}
-
-                    {/* Tooltip - hover 时显示，用于调整lora权重 */}
-                    {isHovered && selectedLoraModel && (
-                      <div
-                        data-lora-tooltip
-                        style={{
-                          position: 'absolute',
-                          bottom: 'calc(100% + 8px)',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          background: Colors.background.secondary,
-                          border: `1px solid ${Colors.border.default}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          boxShadow: Shadows.medium,
-                          zIndex: 10001,
-                          minWidth: 200,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                          pointerEvents: 'auto',
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseEnter={() => {
-                          if (loraHoverTimeoutRef.current) {
-                            clearTimeout(loraHoverTimeoutRef.current);
-                            loraHoverTimeoutRef.current = null;
-                          }
-                          setHoveredLoraId(config.videoLora!);
-                        }}
-                        onMouseLeave={() => {
-                          if (loraHoverTimeoutRef.current) {
-                            clearTimeout(loraHoverTimeoutRef.current);
-                          }
-                          loraHoverTimeoutRef.current = setTimeout(() => {
-                            setHoveredLoraId(null);
-                          }, 200);
-                        }}
-                      >
-                        {/* 模型名称 */}
-                        <div
+                        <img
+                          src={imageUrl}
+                          alt={`Reference ${index + 1}`}
                           style={{
-                            fontSize: Typography.englishBody.fontSize.medium,
-                            fontWeight: Typography.englishBody.fontWeight,
-                            color: Colors.text.primary,
-                            fontFamily: Typography.englishBody.fontFamily,
-                          }}
-                        >
-                          {selectedLoraModel.name}
-                        </div>
-
-                        {/* 滑块和数值输入 */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 14,
-                          }}
-                        >
-                          {/* 滑块 */}
-                          <div
-                            style={{
-                              flex: 1,
-                              height: 16,
-                              position: 'relative',
-                              display: 'flex',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              value={config.videoLoraWeight || 0.8}
-                              onChange={(e) => {
-                                setConfig({ ...config, videoLoraWeight: parseFloat(e.target.value) });
-                              }}
-                              className="lora-weight-slider"
-                              style={{
-                                '--slider-progress': `${(config.videoLoraWeight || 0.8) * 100}%`,
-                              } as React.CSSProperties}
-                            />
-                          </div>
-
-                          {/* 数值输入 */}
-                          <input
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            value={config.videoLoraWeight || 0.8}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              if (!isNaN(value) && value >= 0 && value <= 1) {
-                                setConfig({ ...config, videoLoraWeight: value });
-                              }
-                            }}
-                            style={{
-                              width: 72,
-                              height: 28,
-                              background: Colors.background.secondary,
-                              border: `1px solid ${Colors.border.default}`,
-                              borderRadius: 7,
-                              padding: '8px 12px',
-                              color: Colors.text.primary,
-                              fontSize: Typography.englishBody.fontSize.medium,
-                              fontFamily: Typography.englishBody.fontFamily,
-                              textAlign: 'center',
-                              outline: 'none',
-                            }}
-                          />
-                        </div>
-
-                        {/* 箭头 - 指向下方 */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: -6,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 0,
-                            height: 0,
-                            borderLeft: '6px solid transparent',
-                            borderRight: '6px solid transparent',
-                            borderTop: `6px solid ${Colors.background.secondary}`,
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: -7,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 0,
-                            height: 0,
-                            borderLeft: '6px solid transparent',
-                            borderRight: '6px solid transparent',
-                            borderTop: `6px solid ${Colors.border.default}`,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
                           }}
                         />
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-            </div>
-          )}
-
-          {/* 视频模式 text-to-video - 仅Lora显示 */}
-          {config.mode === 'video' && config.videoCapability === 'text-to-video' && config.videoLora && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              {(() => {
-                const selectedLoraModel = modelData.find(m => m.id === config.videoLora);
-                const isHovered = hoveredLoraId === config.videoLora;
-
-                return (
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: 56,
-                      height: 84,
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={() => {
-                      if (loraHoverTimeoutRef.current) {
-                        clearTimeout(loraHoverTimeoutRef.current);
-                        loraHoverTimeoutRef.current = null;
-                      }
-                      setHoveredLoraId(config.videoLora!);
-                    }}
-                    onMouseLeave={(e) => {
-                      const relatedTarget = e.relatedTarget as HTMLElement;
-                      if (!relatedTarget || !relatedTarget.closest('[data-lora-tooltip]')) {
-                        if (loraHoverTimeoutRef.current) {
-                          clearTimeout(loraHoverTimeoutRef.current);
-                        }
-                        loraHoverTimeoutRef.current = setTimeout(() => {
-                          setHoveredLoraId(null);
-                        }, 100);
-                      }
-                    }}
-                  >
-                    {/* 内容容器 */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: 56,
-                        height: 84,
-                        borderRadius: BorderRadius.small,
-                        overflow: 'hidden',
-                        border: `1px solid ${Colors.border.default}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                    {/* Lora 图片或背景 */}
-                    {selectedLoraModel?.imageUrl ? (
-                      <img
-                        src={selectedLoraModel.imageUrl}
-                        alt={selectedLoraModel.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          background: Colors.background.tertiary,
-                        }}
-                      />
-                    )}
-
-                    {/* 半透明遮罩 */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0, 0, 0, 0.65)',
-                      }}
-                    />
-
-                    {/* 权重值 - 居中显示 */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: Typography.englishBody.fontSize.small,
-                          fontWeight: Typography.englishHeading.fontWeight,
-                          color: Colors.text.primary,
-                          fontFamily: Typography.englishHeading.fontFamily,
-                          lineHeight: '1.27em',
-                        }}
-                      >
-                        {config.videoLoraWeight?.toFixed(1) || '0.8'}
-                      </span>
-                    </div>
-                    </div>
-
-                    {/* 关闭按钮 - hover 时显示 */}
-                    {isHovered && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfig({ ...config, videoLora: undefined, videoLoraWeight: undefined });
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          width: 12,
-                          height: 12,
-                          background: Colors.text.primary,
-                          border: 'none',
-                          borderRadius: '50%',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0,
-                          zIndex: 10002,
-                          transform: 'translate(25%, -25%)',
-                          pointerEvents: 'auto',
-                        }}
-                      >
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    )}
-
-                    {/* Tooltip - hover 时显示，用于调整lora权重 */}
-                    {isHovered && selectedLoraModel && (
-                      <div
-                        data-lora-tooltip
-                        style={{
-                          position: 'absolute',
-                          bottom: 'calc(100% + 8px)',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          background: Colors.background.secondary,
-                          border: `1px solid ${Colors.border.default}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          boxShadow: Shadows.medium,
-                          zIndex: 10001,
-                          minWidth: 200,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                          pointerEvents: 'auto',
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseEnter={() => {
-                          if (loraHoverTimeoutRef.current) {
-                            clearTimeout(loraHoverTimeoutRef.current);
-                            loraHoverTimeoutRef.current = null;
-                          }
-                          setHoveredLoraId(config.videoLora!);
-                        }}
-                        onMouseLeave={() => {
-                          if (loraHoverTimeoutRef.current) {
-                            clearTimeout(loraHoverTimeoutRef.current);
-                          }
-                          loraHoverTimeoutRef.current = setTimeout(() => {
-                            setHoveredLoraId(null);
-                          }, 200);
-                        }}
-                      >
-                        {/* 模型名称 */}
+                      {/* 禁用图标 - 超出限制时显示 */}
+                      {isDisabled && (
                         <div
                           style={{
-                            fontSize: Typography.englishBody.fontSize.medium,
-                            fontWeight: Typography.englishBody.fontWeight,
-                            color: Colors.text.primary,
-                            fontFamily: Typography.englishBody.fontFamily,
-                          }}
-                        >
-                          {selectedLoraModel.name}
-                        </div>
-
-                        {/* 滑块和数值输入 */}
-                        <div
-                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: 24,
+                            height: 24,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 14,
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
                           }}
                         >
-                          {/* 滑块 */}
-                          <div
-                            style={{
-                              flex: 1,
-                              height: 16,
-                              position: 'relative',
-                              display: 'flex',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              value={config.videoLoraWeight || 0.8}
-                              onChange={(e) => {
-                                setConfig({ ...config, videoLoraWeight: parseFloat(e.target.value) });
-                              }}
-                              className="lora-weight-slider"
-                              style={{
-                                '--slider-progress': `${(config.videoLoraWeight || 0.8) * 100}%`,
-                              } as React.CSSProperties}
-                            />
-                          </div>
-
-                          {/* 数值输入 */}
-                          <input
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            value={config.videoLoraWeight || 0.8}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              if (!isNaN(value) && value >= 0 && value <= 1) {
-                                setConfig({ ...config, videoLoraWeight: value });
-                              }
-                            }}
-                            style={{
-                              width: 72,
-                              height: 28,
-                              background: Colors.background.secondary,
-                              border: `1px solid ${Colors.border.default}`,
-                              borderRadius: 7,
-                              padding: '8px 12px',
-                              color: Colors.text.primary,
-                              fontSize: Typography.englishBody.fontSize.medium,
-                              fontFamily: Typography.englishBody.fontFamily,
-                              textAlign: 'center',
-                              outline: 'none',
-                            }}
-                          />
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02943 7.02943 3 12 3C14.125 3 16.078 3.73647 17.6177 4.9681L4.9681 17.6177C3.73647 16.078 3 14.125 3 12ZM6.38231 19.0319L19.0319 6.38231C20.2635 7.92198 21 9.87499 21 12C21 16.9706 16.9706 21 12 21C9.87499 21 7.92198 20.2635 6.38231 19.0319Z" fill="rgba(255, 255, 255, 0.9)"/>
+                          </svg>
                         </div>
-
-                        {/* 箭头 - 指向下方 */}
+                      )}
+                      {/* Tooltip - 超出限制时 hover 显示说明 */}
+                      {isDisabled && hoveredImageIndex === index && (
                         <div
                           style={{
                             position: 'absolute',
-                            bottom: -6,
+                            bottom: 'calc(100% + 8px)',
                             left: '50%',
                             transform: 'translateX(-50%)',
-                            width: 0,
-                            height: 0,
-                            borderLeft: '6px solid transparent',
-                            borderRight: '6px solid transparent',
-                            borderTop: `6px solid ${Colors.background.secondary}`,
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: -7,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 0,
-                            height: 0,
-                            borderLeft: '6px solid transparent',
-                            borderRight: '6px solid transparent',
-                            borderTop: `6px solid ${Colors.border.default}`,
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* 图像模式 - 参考图片和Lora */}
-          {config.mode === 'image' && ((config.referenceImages && config.referenceImages.length > 0) || config.imageLora) && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              {/* 多参考图片预览 - 图像模式下显示 */}
-              {config.referenceImages && config.referenceImages.map((imageUrl, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      position: 'relative',
-                      width: 56,
-                      height: 84,
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={() => setHoveredImageIndex(index)}
-                    onMouseLeave={() => setHoveredImageIndex(null)}
-                  >
-                    {/* 内容容器 */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: 56,
-                        height: 84,
-                        borderRadius: BorderRadius.small,
-                        overflow: 'hidden',
-                        background: Colors.background.primary,
-                      }}
-                    >
-                      <img
-                        src={imageUrl}
-                        alt={`Reference ${index + 1}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    </div>
-
-                    {/* 删除按钮 - 只在hover时显示 */}
-                    {hoveredImageIndex === index && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfig(prev => ({
-                            ...prev,
-                            referenceImages: prev.referenceImages?.filter((_, i) => i !== index),
-                          }));
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          width: 12,
-                          height: 12,
-                          background: Colors.text.primary,
-                          border: 'none',
-                          borderRadius: '50%',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0,
-                          zIndex: 1001,
-                          transform: 'translate(25%, -25%)',
-                          pointerEvents: 'auto',
-                        }}
-                      >
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-              ))}
-
-
-              {/* 分割线 - 在参考图片和Lora之间 */}
-              {((config.referenceImages && config.referenceImages.length > 0) && (config.imageLora || config.videoLora)) && (
-                <div
-                  style={{
-                    width: 1,
-                    height: 16,
-                    background: isLightTheme ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.2)',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-
-              {/* Lora权重显示 - 可点击调整 */}
-              {config.imageLora && (() => {
-                const selectedLoraModel = modelData.find(m => m.id === config.imageLora);
-                const isHovered = hoveredLoraId === config.imageLora;
-
-                return (
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: 56,
-                      height: 84,
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={() => {
-                      // 鼠标进入时，清除任何待处理的超时
-                      if (loraHoverTimeoutRef.current) {
-                        clearTimeout(loraHoverTimeoutRef.current);
-                        loraHoverTimeoutRef.current = null;
-                      }
-                      setHoveredLoraId(config.imageLora!);
-                    }}
-                    onMouseLeave={(e) => {
-                      // 检查鼠标是否移到了tooltip上
-                      const relatedTarget = e.relatedTarget as HTMLElement;
-                      if (!relatedTarget || !relatedTarget.closest('[data-lora-tooltip]')) {
-                        // 延迟隐藏，给用户更多时间移动到tooltip
-                        if (loraHoverTimeoutRef.current) {
-                          clearTimeout(loraHoverTimeoutRef.current);
-                        }
-                        loraHoverTimeoutRef.current = setTimeout(() => {
-                          setHoveredLoraId(null);
-                        }, 100);
-                      }
-                    }}
-                  >
-                    {/* 内容容器 - 用于遮住关闭按钮 */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: 56,
-                        height: 84,
-                        borderRadius: BorderRadius.small,
-                        overflow: 'hidden', // 遮住关闭按钮
-                        border: `1px solid ${Colors.border.default}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                    {/* Lora 图片或背景 */}
-                    {selectedLoraModel?.imageUrl ? (
-                      <img
-                        src={selectedLoraModel.imageUrl}
-                        alt={selectedLoraModel.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          background: Colors.background.tertiary,
-                        }}
-                      />
-                    )}
-                    
-                    {/* 半透明遮罩 */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: 'rgba(0, 0, 0, 0.65)',
-                      }}
-                    />
-                    
-                    {/* 权重值 - 居中显示 */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: Typography.englishBody.fontSize.small, // 11px
-                          fontWeight: Typography.englishHeading.fontWeight, // 600
-                          color: Colors.text.primary,
-                          fontFamily: Typography.englishHeading.fontFamily,
-                          lineHeight: '1.27em',
-                        }}
-                      >
-                        {config.imageLoraWeight?.toFixed(1) || '0.8'}
-                      </span>
-                    </div>
-                    </div>
-                    
-                    {/* 关闭按钮 - hover 时显示，被圆角遮住一部分，放在外层避免被overflow遮挡 */}
-                    {isHovered && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfig({ ...config, imageLora: undefined, imageLoraWeight: undefined });
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          width: 12,
-                          height: 12,
-                          background: Colors.text.primary,
-                          border: 'none',
-                          borderRadius: '50%',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: 0,
-                          zIndex: 10002, // 确保在tooltip之上
-                          transform: 'translate(25%, -25%)', // 部分超出，被圆角遮住
-                          pointerEvents: 'auto',
-                        }}
-                      >
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    )}
-                    
-                    {/* Tooltip - hover 时显示，用于调整lora权重 */}
-                    {isHovered && selectedLoraModel && (
-                      <div
-                        data-lora-tooltip
-                        style={{
-                          position: 'absolute',
-                          bottom: 'calc(100% + 8px)',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          background: Colors.background.secondary,
-                          border: `1px solid ${Colors.border.default}`,
-                          borderRadius: 12,
-                          padding: 12,
-                          boxShadow: Shadows.medium,
-                          zIndex: 10001,
-                          minWidth: 200,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 8,
-                          pointerEvents: 'auto', // 确保可以交互
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseEnter={() => {
-                          // 鼠标移到tooltip上时保持显示，清除任何待处理的超时
-                          if (loraHoverTimeoutRef.current) {
-                            clearTimeout(loraHoverTimeoutRef.current);
-                            loraHoverTimeoutRef.current = null;
-                          }
-                          setHoveredLoraId(config.imageLora!);
-                        }}
-                        onMouseLeave={() => {
-                          // 鼠标离开tooltip时延迟隐藏（200ms）
-                          if (loraHoverTimeoutRef.current) {
-                            clearTimeout(loraHoverTimeoutRef.current);
-                          }
-                          loraHoverTimeoutRef.current = setTimeout(() => {
-                            setHoveredLoraId(null);
-                          }, 200);
-                        }}
-                      >
-                        {/* 模型名称 */}
-                        <div
-                          style={{
-                            fontSize: Typography.englishBody.fontSize.medium, // 14px
-                            fontWeight: Typography.englishBody.fontWeight, // 400
-                            color: Colors.text.primary,
-                            fontFamily: Typography.englishBody.fontFamily,
+                            background: isLightTheme ? '#F5F5F5' : '#2A2A2A',
+                            border: `1px solid ${isLightTheme ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'}`,
+                            borderRadius: 6,
+                            padding: '6px 10px',
+                            fontSize: 12,
+                            color: isLightTheme ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.65)',
+                            whiteSpace: 'nowrap',
+                            zIndex: 10002,
+                            pointerEvents: 'none',
                           }}
                         >
-                          {selectedLoraModel.name}
+                          {currentModel?.name || '当前模型'} 仅支持 {maxImages} 张图片
                         </div>
-                        
-                        {/* 滑块和数值输入 */}
-                        <div
+                      )}
+                      {/* 关闭按钮 - hover 时显示 */}
+                      {hoveredImageIndex === index && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfig(prev => ({
+                              ...prev,
+                              referenceImages: prev.referenceImages?.filter((_, i) => i !== index),
+                            }));
+                          }}
                           style={{
+                            position: 'absolute',
+                            top: -4,
+                            right: -4,
+                            width: 14,
+                            height: 14,
+                            background: Colors.text.primary,
+                            border: 'none',
+                            borderRadius: '50%',
+                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 14,
+                            justifyContent: 'center',
+                            padding: 0,
+                            zIndex: 1001,
                           }}
                         >
-                          {/* 滑块 */}
-                          <div
-                            style={{
-                              flex: 1,
-                              height: 16,
-                              position: 'relative',
-                              display: 'flex',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              value={config.imageLoraWeight || 0.8}
-                              onChange={(e) => {
-                                setConfig({ ...config, imageLoraWeight: parseFloat(e.target.value) });
-                              }}
-                              className="lora-weight-slider"
-                              style={{
-                                '--slider-progress': `${(config.imageLoraWeight || 0.8) * 100}%`,
-                              } as React.CSSProperties}
-                            />
-                          </div>
-                          
-                          {/* 数值输入 */}
-                          <input
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            value={config.imageLoraWeight || 0.8}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              if (!isNaN(value) && value >= 0 && value <= 1) {
-                                setConfig({ ...config, imageLoraWeight: value });
-                              }
-                            }}
-                            style={{
-                              width: 72,
-                              height: 28,
-                              background: Colors.background.secondary,
-                              border: `1px solid ${Colors.border.default}`,
-                              borderRadius: 7,
-                              padding: '8px 12px',
-                              color: Colors.text.primary,
-                              fontSize: Typography.englishBody.fontSize.medium, // 14px
-                              fontFamily: Typography.englishBody.fontFamily,
-                              textAlign: 'center',
-                              outline: 'none',
-                            }}
-                          />
-                        </div>
-                        
-                        {/* 箭头 - 指向下方 */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: -6,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 0,
-                            height: 0,
-                            borderLeft: '6px solid transparent',
-                            borderRight: '6px solid transparent',
-                            borderTop: `6px solid ${Colors.background.secondary}`,
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: -7,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 0,
-                            height: 0,
-                            borderLeft: '6px solid transparent',
-                            borderRight: '6px solid transparent',
-                            borderTop: `6px solid ${Colors.border.default}`,
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-            </div>
-          )}
-
-          {/* 对话输入框 */}
-          <div
-            style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: Spacing.md,
-              padding: 0, // 移除padding
-              minHeight: 80,
-            }}
-          >
+                          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                            <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    );
+                  })}
+                </>
+              );
+            })()}
             <textarea
               ref={textareaRef}
               className="bottom-dialog-textarea"
@@ -2311,7 +1549,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               placeholder={selectedLayer ? '基于此图片进行AI生图...' : (isLandingPage ? displayedPlaceholder : CANVAS_PLACEHOLDER)}
               style={{
                 flex: 1,
-                minHeight: 24,
+                minWidth: 360,
+                minHeight: isLandingPage ? 24 : 72,
                 maxHeight: isLandingPage ? 120 : 72,
                 background: 'transparent',
                 border: 'none',
@@ -2330,8 +1569,401 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 overflowX: 'hidden',
                 wordWrap: 'break-word',
               }}
-              rows={1}
+              rows={isLandingPage ? 1 : 3}
             />
+
+            {/* 右侧区域：Loras（最多6个） */}
+            {(() => {
+              // 统一处理图像和视频模式的 Lora（兼容旧的 videoLora 单个字段）
+              const loras = config.mode === 'image'
+                ? (config.imageLoras || [])
+                : (config.videoLoras || (config.videoLora ? [{ id: config.videoLora, weight: config.videoLoraWeight || 0.8 }] : []));
+
+              if (loras.length === 0) return null;
+
+              // 高度与 textarea maxHeight 一致，比例 2:3
+              const loraHeight = isLandingPage ? 120 : 72;
+              const loraWidth = Math.round(loraHeight * 2 / 3);
+
+              return (
+                <>
+                  {/* 分割线 */}
+                  <div
+                    style={{
+                      width: 1,
+                      height: 24,
+                      background: isLightTheme ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.2)',
+                      flexShrink: 0,
+                      alignSelf: 'center',
+                    }}
+                  />
+                  {/* Lora 列表 */}
+                  {loras.map((lora, index) => {
+                    const selectedLoraModel = modelData.find(m => m.id === lora.id);
+                    const isHovered = hoveredLoraId === lora.id;
+                    // 检查 Lora 是否与当前模型兼容
+                    const isCompatible = !selectedLoraModel?.compatibleModels ||
+                      selectedLoraModel.compatibleModels.length === 0 ||
+                      selectedLoraModel.compatibleModels.includes(config.model);
+
+                    return (
+                <div
+                  key={lora.id}
+                  style={{
+                    position: 'relative',
+                    width: loraWidth,
+                    height: loraHeight,
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={() => {
+                    if (loraHoverTimeoutRef.current) {
+                      clearTimeout(loraHoverTimeoutRef.current);
+                      loraHoverTimeoutRef.current = null;
+                    }
+                    setHoveredLoraId(lora.id);
+                  }}
+                  onMouseLeave={(e) => {
+                    const relatedTarget = e.relatedTarget as HTMLElement;
+                    if (!relatedTarget || !relatedTarget.closest('[data-lora-tooltip]')) {
+                      if (loraHoverTimeoutRef.current) {
+                        clearTimeout(loraHoverTimeoutRef.current);
+                      }
+                      loraHoverTimeoutRef.current = setTimeout(() => {
+                        setHoveredLoraId(null);
+                      }, 100);
+                    }
+                  }}
+                >
+                  {/* 内容容器 */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: loraWidth,
+                      height: loraHeight,
+                      borderRadius: BorderRadius.small,
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {/* Lora 图片或背景 */}
+                    {selectedLoraModel?.imageUrl ? (
+                      <img
+                        src={selectedLoraModel.imageUrl}
+                        alt={selectedLoraModel.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          background: Colors.background.tertiary,
+                        }}
+                      />
+                    )}
+
+                    {/* 半透明遮罩 - 不兼容时更深 */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: isCompatible ? 'rgba(0, 0, 0, 0.65)' : 'rgba(0, 0, 0, 0.85)',
+                      }}
+                    />
+
+                    {/* 中间显示内容：兼容时显示权重，不兼容时显示闭眼图标 */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {isCompatible ? (
+                        <span
+                          style={{
+                            fontSize: Typography.englishBody.fontSize.small,
+                            fontWeight: Typography.englishHeading.fontWeight,
+                            color: Colors.text.primary,
+                            fontFamily: Typography.englishHeading.fontFamily,
+                            lineHeight: '1.27em',
+                          }}
+                        >
+                          {lora.weight.toFixed(1)}
+                        </span>
+                      ) : (
+                        /* 闭眼图标 - 表示不兼容 */
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                          <path d="M1 1l22 22" />
+                          <path d="M8.71 8.71a4 4 0 1 0 5.58 5.58" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 关闭按钮 - hover 时显示 */}
+                  {isHovered && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (config.mode === 'image') {
+                          setConfig(prev => ({
+                            ...prev,
+                            imageLoras: prev.imageLoras?.filter((_, i) => i !== index),
+                          }));
+                        } else {
+                          setConfig(prev => ({
+                            ...prev,
+                            videoLoras: prev.videoLoras?.filter((_, i) => i !== index),
+                            // 清除旧字段（兼容）
+                            videoLora: undefined,
+                            videoLoraWeight: undefined,
+                          }));
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: 12,
+                        height: 12,
+                        background: Colors.text.primary,
+                        border: 'none',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        zIndex: 10002,
+                        transform: 'translate(25%, -25%)',
+                        pointerEvents: 'auto',
+                      }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                        <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Tooltip - hover 时显示 */}
+                  {isHovered && selectedLoraModel && (
+                    <div
+                      data-lora-tooltip
+                      style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 8px)',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: Colors.background.secondary,
+                        border: `1px solid ${Colors.border.default}`,
+                        borderRadius: 12,
+                        padding: 12,
+                        boxShadow: Shadows.medium,
+                        zIndex: 10001,
+                        minWidth: 200,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        pointerEvents: 'auto',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseEnter={() => {
+                        if (loraHoverTimeoutRef.current) {
+                          clearTimeout(loraHoverTimeoutRef.current);
+                          loraHoverTimeoutRef.current = null;
+                        }
+                        setHoveredLoraId(lora.id);
+                      }}
+                      onMouseLeave={() => {
+                        if (loraHoverTimeoutRef.current) {
+                          clearTimeout(loraHoverTimeoutRef.current);
+                        }
+                        loraHoverTimeoutRef.current = setTimeout(() => {
+                          setHoveredLoraId(null);
+                        }, 200);
+                      }}
+                    >
+                      {/* 不兼容提示 */}
+                      {!isCompatible && (
+                        <div
+                          style={{
+                            fontSize: Typography.englishBody.fontSize.small,
+                            color: '#FF6B6B',
+                            fontFamily: Typography.englishBody.fontFamily,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                            <path d="M1 1l22 22" />
+                          </svg>
+                          该 Lora 不支持当前模型
+                        </div>
+                      )}
+
+                      {/* 模型名称 | Lora名称 */}
+                      <div
+                        style={{
+                          fontSize: Typography.englishBody.fontSize.medium,
+                          fontWeight: Typography.englishBody.fontWeight,
+                          color: isCompatible ? Colors.text.primary : Colors.text.tertiary,
+                          fontFamily: Typography.englishBody.fontFamily,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: 176,
+                        }}
+                        title={`${modelData.find(m => m.id === config.model)?.name || 'Model'} | ${selectedLoraModel.name}`}
+                      >
+                        {modelData.find(m => m.id === config.model)?.name || 'Model'} | {selectedLoraModel.name}
+                      </div>
+
+                      {/* 滑块和数值输入 - 仅兼容时显示 */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 14,
+                        }}
+                      >
+                        {/* 滑块 */}
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 16,
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.1"
+                            value={lora.weight}
+                            onChange={(e) => {
+                              const newWeight = parseFloat(e.target.value);
+                              if (config.mode === 'image') {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  imageLoras: prev.imageLoras?.map((l, i) =>
+                                    i === index ? { ...l, weight: newWeight } : l
+                                  ),
+                                }));
+                              } else {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  videoLoras: prev.videoLoras?.map((l, i) =>
+                                    i === index ? { ...l, weight: newWeight } : l
+                                  ),
+                                }));
+                              }
+                            }}
+                            className="lora-weight-slider"
+                            style={{
+                              '--slider-progress': `${lora.weight * 100}%`,
+                            } as React.CSSProperties}
+                          />
+                        </div>
+
+                        {/* 数值输入 */}
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={lora.weight}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 0 && value <= 1) {
+                              if (config.mode === 'image') {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  imageLoras: prev.imageLoras?.map((l, i) =>
+                                    i === index ? { ...l, weight: value } : l
+                                  ),
+                                }));
+                              } else {
+                                setConfig(prev => ({
+                                  ...prev,
+                                  videoLoras: prev.videoLoras?.map((l, i) =>
+                                    i === index ? { ...l, weight: value } : l
+                                  ),
+                                }));
+                              }
+                            }
+                          }}
+                          style={{
+                            width: 72,
+                            height: 28,
+                            background: Colors.background.secondary,
+                            border: `1px solid ${Colors.border.default}`,
+                            borderRadius: 7,
+                            padding: '8px 12px',
+                            color: Colors.text.primary,
+                            fontSize: Typography.englishBody.fontSize.medium,
+                            fontFamily: Typography.englishBody.fontFamily,
+                            textAlign: 'center',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+
+                      {/* 箭头 - 指向下方 */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: -6,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 0,
+                          height: 0,
+                          borderLeft: '6px solid transparent',
+                          borderRight: '6px solid transparent',
+                          borderTop: `6px solid ${Colors.background.secondary}`,
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: -7,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 0,
+                          height: 0,
+                          borderLeft: '6px solid transparent',
+                          borderRight: '6px solid transparent',
+                          borderTop: `6px solid ${Colors.border.default}`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                    );
+                  })}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -2543,6 +2175,16 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                     models={modelData.filter(m => m.mode === config.mode)}
                     selectedModel={config.model}
                     onSelect={(modelId) => {
+                      const newMaxImages = getMaxImages(modelId);
+                      const currentImages = config.referenceImages?.length || 0;
+                      const unusedCount = currentImages - newMaxImages;
+
+                      // 如果当前图片数量超过新模型的限制，提示用户有几张不会被使用
+                      if (unusedCount > 0) {
+                        setErrorMessage(`有 ${unusedCount} 张参考图将不会被使用`);
+                        setTimeout(() => setErrorMessage(null), 4000);
+                      }
+
                       setConfig({ ...config, model: modelId });
                       setShowModelDropdown(false);
                       setModelSelectorPosition(null);
@@ -2664,12 +2306,27 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 {showLoraDialog && (
                   <LoraSelector
                     models={modelData}
-                    selectedLora={config.mode === 'image' ? config.imageLora : config.videoLora}
+                    selectedLora={config.mode === 'image' ? config.imageLoras?.[0]?.id : config.videoLoras?.[0]?.id}
                     onSelect={(loraId) => {
+                      // 统一处理：最多 6 个 Lora
+                      const currentLoras = config.mode === 'image'
+                        ? (config.imageLoras || [])
+                        : (config.videoLoras || []);
+                      // 检查是否已存在
+                      if (currentLoras.some(l => l.id === loraId)) {
+                        setShowLoraDialog(false);
+                        return;
+                      }
+                      // 最多 6 个
+                      if (currentLoras.length >= 6) {
+                        setShowLoraDialog(false);
+                        return;
+                      }
+                      const newLoras = [...currentLoras, { id: loraId, weight: 0.8 }];
                       if (config.mode === 'image') {
-                        setConfig({ ...config, imageLora: loraId, imageLoraWeight: config.imageLoraWeight || 0.8 });
+                        setConfig({ ...config, imageLoras: newLoras });
                       } else {
-                        setConfig({ ...config, videoLora: loraId, videoLoraWeight: config.videoLoraWeight || 0.8 });
+                        setConfig({ ...config, videoLoras: newLoras });
                       }
                       setShowLoraDialog(false);
                     }}
@@ -2680,58 +2337,75 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               </Tooltip>
 
               {/* 参考图片上传 - 仅图像模式显示 */}
-              {config.mode === 'image' && (
-                <Tooltip text="上传参考图片（最多10张）" position="top" isLight={isLightTheme}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '4px',
-                    background: 'transparent',
-                    borderRadius: '100px',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                    position: 'relative',
-                    flexShrink: 0,
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.onchange = (event: any) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (fileEvent: any) => {
-                          const imageUrl = fileEvent.target.result;
-                          const existingImages = config.referenceImages || [];
-                          if (existingImages.length >= 10) {
-                            setErrorMessage('最多只能添加10张参考图片');
-                            setTimeout(() => setErrorMessage(null), 3000);
-                            return;
-                          }
-                          setConfig({
-                            ...config,
-                            referenceImages: [...existingImages, imageUrl],
-                          });
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    };
-                    input.click();
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  <img src={iconInitialImg} alt="Reference Image" width={20} height={20} style={{ flexShrink: 0, filter: getIconFilter() }} />
-                </div>
-                </Tooltip>
-              )}
+              {config.mode === 'image' && (() => {
+                const maxImages = getMaxImages(config.model);
+                const currentImages = config.referenceImages?.length || 0;
+                const isDisabled = currentImages >= maxImages;
+
+                return (
+                  <Tooltip
+                    text={isDisabled ? `当前模型最多支持${maxImages}张参考图片` : "上传参考图片"}
+                    position="top"
+                    isLight={isLightTheme}
+                  >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px',
+                      background: 'transparent',
+                      borderRadius: '100px',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.2s',
+                      position: 'relative',
+                      flexShrink: 0,
+                      opacity: isDisabled ? 0.4 : 1,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isDisabled) return;
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (event: any) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (fileEvent: any) => {
+                            const imageUrl = fileEvent.target.result;
+                            const existingImages = config.referenceImages || [];
+                            if (existingImages.length >= maxImages) {
+                              setErrorMessage(`当前模型最多支持${maxImages}张参考图片`);
+                              setTimeout(() => setErrorMessage(null), 3000);
+                              return;
+                            }
+                            // 上传第一张图片时，自动切换到 Keep ratio
+                            const newConfig = {
+                              ...config,
+                              referenceImages: [...existingImages, imageUrl],
+                            };
+                            if (existingImages.length === 0) {
+                              newConfig.aspectRatio = 'keep';
+                            }
+                            setConfig(newConfig);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isDisabled) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <img src={iconInitialImg} alt="Reference Image" width={20} height={20} style={{ flexShrink: 0, filter: getIconFilter() }} />
+                  </div>
+                  </Tooltip>
+                );
+              })()}
 
               {/* 提示词增强 */}
               <Tooltip text="AI提示词增强：自动优化您的提示词以获得更好的生成效果" position="top" isLight={isLightTheme}>
@@ -2948,13 +2622,14 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         marginBottom: 6,
                         letterSpacing: '0.02em',
                       }}>Aspect Ratio</div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {['16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                        {['keep', '16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
                           const isSelected = ratio === config.aspectRatio;
                           const getRatioIcon = (r: string) => {
                             const color = isSelected
                               ? (isLightTheme ? theme.textPrimary : '#fff')
                               : (isLightTheme ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)');
+                            if (r === 'keep') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="10" rx="1.5" stroke={color} strokeWidth="1.2" strokeDasharray="2 1.5"/></svg>;
                             if (r === '16:9') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="8" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '9:16') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="5" y="2" width="8" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '1:1') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
@@ -2962,12 +2637,12 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                             if (r === '3:4') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="2" width="10" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             return null;
                           };
+                          const displayLabel = ratio === 'keep' ? 'Keep ratio' : ratio;
                           return (
                             <button
                               key={ratio}
                               onClick={() => setConfig({ ...config, aspectRatio: ratio })}
                               style={{
-                                flex: 1,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -2979,7 +2654,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                   : 'transparent',
                                 border: isSelected
                                   ? (isLightTheme ? '1px solid rgba(56, 189, 255, 0.4)' : '1px solid rgba(56, 189, 255, 0.3)')
-                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.1)' : '1px solid transparent'),
+                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(255,255,255,0.12)'),
                                 borderRadius: BorderRadius.small,
                                 color: isSelected
                                   ? (isLightTheme ? theme.textPrimary : '#fff')
@@ -2997,7 +2672,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                               }}
                             >
                               {getRatioIcon(ratio)}
-                              <span>{ratio}</span>
+                              <span>{displayLabel}</span>
                             </button>
                           );
                         })}
@@ -3036,7 +2711,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                   : 'transparent',
                                 border: isSelected
                                   ? (isLightTheme ? '1px solid rgba(56, 189, 255, 0.4)' : '1px solid rgba(56, 189, 255, 0.3)')
-                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.1)' : '1px solid transparent'),
+                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(255,255,255,0.12)'),
                                 borderRadius: BorderRadius.small,
                                 color: isSelected
                                   ? (isLightTheme ? theme.textPrimary : '#fff')
@@ -3095,7 +2770,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                   : 'transparent',
                                 border: isSelected
                                   ? (isLightTheme ? '1px solid rgba(56, 189, 255, 0.4)' : '1px solid rgba(56, 189, 255, 0.3)')
-                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.1)' : '1px solid transparent'),
+                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(255,255,255,0.12)'),
                                 borderRadius: BorderRadius.small,
                                 color: isSelected
                                   ? (isLightTheme ? theme.textPrimary : '#fff')
@@ -3133,13 +2808,14 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         marginBottom: 6,
                         letterSpacing: '0.02em',
                       }}>Aspect Ratio</div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {['16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                        {['keep', '16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
                           const isSelected = ratio === config.aspectRatio;
                           const getRatioIcon = (r: string) => {
                             const color = isSelected
                               ? (isLightTheme ? theme.textPrimary : '#fff')
                               : (isLightTheme ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)');
+                            if (r === 'keep') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="10" rx="1.5" stroke={color} strokeWidth="1.2" strokeDasharray="2 1.5"/></svg>;
                             if (r === '16:9') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="8" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '9:16') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="5" y="2" width="8" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '1:1') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
@@ -3147,12 +2823,12 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                             if (r === '3:4') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="2" width="10" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             return null;
                           };
+                          const displayLabel = ratio === 'keep' ? 'Keep ratio' : ratio;
                           return (
                             <button
                               key={ratio}
                               onClick={() => setConfig({ ...config, aspectRatio: ratio })}
                               style={{
-                                flex: 1,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -3164,7 +2840,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                   : 'transparent',
                                 border: isSelected
                                   ? (isLightTheme ? '1px solid rgba(56, 189, 255, 0.4)' : '1px solid rgba(56, 189, 255, 0.3)')
-                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.1)' : '1px solid transparent'),
+                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(255,255,255,0.12)'),
                                 borderRadius: BorderRadius.small,
                                 color: isSelected
                                   ? (isLightTheme ? theme.textPrimary : '#fff')
@@ -3182,7 +2858,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                               }}
                             >
                               {getRatioIcon(ratio)}
-                              <span>{ratio}</span>
+                              <span>{displayLabel}</span>
                             </button>
                           );
                         })}
@@ -3223,7 +2899,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                   : 'transparent',
                                 border: isSelected
                                   ? (isLightTheme ? '1px solid rgba(56, 189, 255, 0.4)' : '1px solid rgba(56, 189, 255, 0.3)')
-                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.1)' : '1px solid transparent'),
+                                  : (isLightTheme ? '1px solid rgba(0,0,0,0.12)' : '1px solid rgba(255,255,255,0.12)'),
                                 borderRadius: BorderRadius.small,
                                 color: isSelected
                                   ? (isLightTheme ? theme.textPrimary : '#fff')

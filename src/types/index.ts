@@ -38,10 +38,12 @@ export interface GenerationConfig {
   model: string;
   lora?: string; // 图像模式的 Lora（已弃用，保留兼容）
   loraWeight?: number; // Lora权重，默认0.8
-  imageLora?: string; // 图像模式专属 Lora
-  imageLoraWeight?: number; // 图像模式 Lora 权重
-  videoLora?: string; // 视频模式专属 Lora
-  videoLoraWeight?: number; // 视频模式 Lora 权重
+  imageLora?: string; // 图像模式专属 Lora（已弃用，保留兼容）
+  imageLoraWeight?: number; // 图像模式 Lora 权重（已弃用，保留兼容）
+  imageLoras?: { id: string; weight: number }[]; // 图像模式 Loras（最多6个）
+  videoLora?: string; // 视频模式专属 Lora（已弃用，保留兼容）
+  videoLoraWeight?: number; // 视频模式 Lora 权重（已弃用，保留兼容）
+  videoLoras?: { id: string; weight: number }[]; // 视频模式 Loras（最多6个）
   referenceImage?: string; // 单个参考图（兼容旧代码）
   referenceImages?: string[]; // 多个参考图（图像模式，最多10张）
   aspectRatio: string;
@@ -84,5 +86,7 @@ export interface Model {
   tags?: string[];
   isUser?: boolean;
   isFavorite?: boolean;
+  estimatedTime?: string; // 预估生成时间，如 "30s", "1 min", "2 min"
+  compatibleModels?: string[]; // Lora 兼容的模型 ID 列表（仅用于 Lora）
 }
 

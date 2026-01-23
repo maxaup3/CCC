@@ -4620,6 +4620,12 @@ const Canvas: React.FC<CanvasProps> = ({
                 transition: 'opacity 0.15s ease',
               }}
               onClick={(e) => {
+                // Toggle 行为：如果已显示同一图层的详情，则关闭
+                if (showDetailPanel && detailPanelLayer?.id === selectedLayer.id) {
+                  setShowDetailPanel(false);
+                  setDetailPanelManualClosed(true);
+                  return;
+                }
                 setDetailPanelLayer(selectedLayer);
                 // 保存锚点位置（info按钮中心）
                 const buttonRect = e.currentTarget.getBoundingClientRect();

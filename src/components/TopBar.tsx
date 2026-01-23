@@ -320,14 +320,14 @@ const TopBar: React.FC<TopBarProps> = ({
             padding: '4px 8px',
             background: themeStyle === 'original' ? Colors.theme.primaryLight : theme.buttonBackground,
             backdropFilter: themeStyle === 'original' ? undefined : theme.panelBackdrop,
-            border: themeStyle === 'original' ? 'none' : theme.buttonBorder,
+            border: 'none',
             borderRadius: themeStyle === 'original' ? BorderRadius.large : parseInt(theme.buttonBorderRadius),
             height: 36,
             transition: 'all 0.3s ease',
             boxShadow: themeStyle === 'cyberpunk' ? `0 0 15px ${(theme as any).glowColor}40` : undefined,
           }}
         >
-          <svg style={{ padding: '4px 4px' }} width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M10.876 2.8451C10.994 2.4203 10.6746 2 10.2337 2H6.04304C5.75256 2 5.49552 2.18808 5.40763 2.46495L3.55288 8.30739C3.43463 8.67988 3.66068 9.07373 4.04196 9.15951L5.6228 9.5152C5.99078 9.598 6.21685 9.96932 6.12144 10.3342L5.11873 14.1696C5.03323 14.4966 5.43269 14.7286 5.67433 14.4922L12.5251 7.79035C12.888 7.43533 12.7367 6.82112 12.2505 6.67524L10.6253 6.18768C10.2777 6.08341 10.0774 5.72032 10.1745 5.3707L10.876 2.8451Z"
               fill={isLightTheme ? theme.textAccent : "#38BDFF"}
@@ -349,7 +349,7 @@ const TopBar: React.FC<TopBarProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            border: themeStyle === 'original' ? `1px solid rgba(255, 255, 255, 0.2)` : theme.buttonBorder,
+            border: 'none',
             borderRadius: themeStyle === 'original' ? BorderRadius.large : parseInt(theme.buttonBorderRadius),
             padding: '4px 4px',
             background: themeStyle === 'original' ? Colors.background.primary : theme.buttonBackground,
@@ -412,6 +412,7 @@ const TopBar: React.FC<TopBarProps> = ({
             </svg>
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -80,7 +80,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
     alignItems: 'center',
     justifyContent: 'center',
     background: isLight ? '#F5F5F5' : '#2A2A2A',
-    border: isLight ? '1px solid rgba(0, 0, 0, 0.08)' : '1px solid rgba(255, 255, 255, 0.12)',
+    border: 'none',
     boxShadow: isLight ? '0 2px 8px rgba(0, 0, 0, 0.08)' : '0 2px 8px rgba(0, 0, 0, 0.2)',
     transition: 'all 0.2s ease',
   };

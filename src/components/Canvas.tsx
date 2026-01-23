@@ -14,7 +14,219 @@ import iconImage from '../assets/icons/image.svg?url';
 import iconVideo from '../assets/icons/video.svg?url';
 import libraryIcon from '../assets/icons/library-icon.svg?url';
 
-// TODO: 视频控制组件 (VideoControls) - 等待视频功能完整实现后添加
+// 视频控制组件
+interface VideoControlsProps {
+  video: HTMLVideoElement;
+  width: number;
+}
+
+const VideoControls: React.FC<VideoControlsProps> = ({ video, width }) => {
+  const [isPlaying, setIsPlaying] = useState(!video.paused);
+  const [currentTime, setCurrentTime] = useState(video.currentTime);
+  const [duration, setDuration] = useState(video.duration || 0);
+  const [isMuted, setIsMuted] = useState(video.muted);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleDurationChange = () => setDuration(video.duration || 0);
+    const handleVolumeChange = () => setIsMuted(video.muted);
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('durationchange', handleDurationChange);
+    video.addEventListener('volumechange', handleVolumeChange);
+
+    // 初始化状态
+    setIsPlaying(!video.paused);
+    setCurrentTime(video.currentTime);
+    setDuration(video.duration || 0);
+    setIsMuted(video.muted);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('durationchange', handleDurationChange);
+      video.removeEventListener('volumechange', handleVolumeChange);
+    };
+  }, [video]);
+
+  const togglePlay = () => {
+    if (video.paused) {
+      video.play().catch(err => console.error('Video play error:', err));
+    } else {
+      video.pause();
+    }
+  };
+
+  const toggleMute = () => {
+    video.muted = !video.muted;
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (progressBarRef.current && duration > 0) {
+      const rect = progressBarRef.current.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const newTime = (clickX / rect.width) * duration;
+      video.currentTime = Math.max(0, Math.min(newTime, duration));
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (!isFinite(time)) return '0:00';
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 12px',
+        background: 'rgba(24, 24, 24, 0.95)',
+        borderRadius: 8,
+        minWidth: Math.max(200, width),
+        width: '100%',
+      }}
+    >
+      {/* 播放/暂停按钮 */}
+      <button
+        onClick={togglePlay}
+        style={{
+          width: 28,
+          height: 28,
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: 'none',
+          borderRadius: 4,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          transition: 'background 0.2s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+      >
+        {isPlaying ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="3" y="2" width="3" height="10" rx="1" fill="rgba(255, 255, 255, 0.85)" />
+            <rect x="8" y="2" width="3" height="10" rx="1" fill="rgba(255, 255, 255, 0.85)" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M4 2.5v9l7-4.5-7-4.5z" fill="rgba(255, 255, 255, 0.85)" />
+          </svg>
+        )}
+      </button>
+
+      {/* 时间显示 */}
+      <span style={{
+        fontSize: 11,
+        fontFamily: 'SF Mono, monospace',
+        color: 'rgba(255, 255, 255, 0.65)',
+        minWidth: 35,
+        flexShrink: 0,
+      }}>
+        {formatTime(currentTime)}
+      </span>
+
+      {/* 进度条 */}
+      <div
+        ref={progressBarRef}
+        onClick={handleProgressClick}
+        style={{
+          flex: 1,
+          height: 4,
+          background: 'rgba(255, 255, 255, 0.2)',
+          borderRadius: 2,
+          cursor: 'pointer',
+          position: 'relative',
+          minWidth: 60,
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: `${progress}%`,
+            background: 'rgba(255, 255, 255, 0.85)',
+            borderRadius: 2,
+            transition: 'width 0.1s linear',
+          }}
+        />
+        {/* 进度条圆点 */}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${progress}%`,
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 10,
+            height: 10,
+            background: '#fff',
+            borderRadius: '50%',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)',
+          }}
+        />
+      </div>
+
+      {/* 时长显示 */}
+      <span style={{
+        fontSize: 11,
+        fontFamily: 'SF Mono, monospace',
+        color: 'rgba(255, 255, 255, 0.45)',
+        minWidth: 35,
+        flexShrink: 0,
+      }}>
+        {formatTime(duration)}
+      </span>
+
+      {/* 静音按钮 */}
+      <button
+        onClick={toggleMute}
+        style={{
+          width: 28,
+          height: 28,
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: 'none',
+          borderRadius: 4,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          transition: 'background 0.2s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+      >
+        {isMuted ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 2L4 5H2v4h2l3 3V2z" fill="rgba(255, 255, 255, 0.85)" />
+            <path d="M10 5l3 3m0-3l-3 3" stroke="rgba(255, 255, 255, 0.85)" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 2L4 5H2v4h2l3 3V2z" fill="rgba(255, 255, 255, 0.85)" />
+            <path d="M10 4.5c.7.7 1 1.5 1 2.5s-.3 1.8-1 2.5M11.5 3c1.2 1.2 1.5 2.5 1.5 4s-.3 2.8-1.5 4" stroke="rgba(255, 255, 255, 0.85)" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+};
 
 interface CanvasProps {
   layers: ImageLayer[];
@@ -58,6 +270,7 @@ interface ImageNodeProps {
   onCommentAdd: (comment: Omit<Comment, 'id' | 'createdAt'>) => void;
   onCommentUpdate: (commentId: string, updates: Partial<Comment>) => void;
   onFillToDialog?: (imageUrl: string | string[]) => void;
+  onVideoElementChange?: (layerId: string, videoElement: HTMLVideoElement | null) => void;
 }
 
 const ImageNode: React.FC<ImageNodeProps> = ({
@@ -70,6 +283,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({
   onCommentAdd,
   onCommentUpdate,
   onFillToDialog,
+  onVideoElementChange,
 }) => {
   const { themeStyle } = useTheme();
   const theme = getThemeStyles(themeStyle);
@@ -99,14 +313,14 @@ const ImageNode: React.FC<ImageNodeProps> = ({
       video.setAttribute('webkit-playsinline', '');
 
       video.onloadedmetadata = () => {
-        console.log('Video metadata loaded:', video.videoWidth, 'x', video.videoHeight);
-        // 元数据加载后就可以设置 image
+                // 元数据加载后就可以设置 image
         setImage(video);
+        // 通知父组件 video 元素已准备好
+        onVideoElementChange?.(layer.id, video);
       };
 
       video.onloadeddata = () => {
-        console.log('Video data loaded');
-        setIsVideoPlaying(false);
+                setIsVideoPlaying(false);
         // 跳转到第一帧以显示预览
         video.currentTime = 0.1;
       };
@@ -125,6 +339,8 @@ const ImageNode: React.FC<ImageNodeProps> = ({
         video.removeAttribute('src');
         video.load();
         setIsVideoPlaying(false);
+        // 通知父组件 video 元素已销毁
+        onVideoElementChange?.(layer.id, null);
       };
     } else {
       // 创建图片元素
@@ -142,8 +358,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({
       let anim: Konva.Animation | null = null;
 
       const handlePlay = () => {
-        console.log('Video play event');
-        // 播放时持续更新帧
+                // 播放时持续更新帧
         const layer = groupRef.current?.getLayer();
         if (layer) {
           anim = new Konva.Animation(() => {
@@ -154,8 +369,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({
       };
 
       const handlePause = () => {
-        console.log('Video pause event');
-        // 暂停时停止动画并触发一次重绘
+                // 暂停时停止动画并触发一次重绘
         if (anim) {
           anim.stop();
           anim = null;
@@ -165,14 +379,12 @@ const ImageNode: React.FC<ImageNodeProps> = ({
 
       // 视频准备好时触发一次重绘以显示第一帧
       const handleCanPlay = () => {
-        console.log('Video can play, triggering redraw');
-        groupRef.current?.getLayer()?.batchDraw();
+                groupRef.current?.getLayer()?.batchDraw();
       };
 
       // 视频 seek 完成后重绘（显示第一帧）
       const handleSeeked = () => {
-        console.log('Video seeked, triggering redraw');
-        groupRef.current?.getLayer()?.batchDraw();
+                groupRef.current?.getLayer()?.batchDraw();
       };
 
       // 视频时间更新时重绘（确保帧显示）
@@ -732,6 +944,18 @@ const Canvas: React.FC<CanvasProps> = ({
   const [selectionBox, setSelectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 视频元素缓存
+  const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
+
+  // 视频元素变化回调
+  const handleVideoElementChange = useCallback((layerId: string, videoElement: HTMLVideoElement | null) => {
+    if (videoElement) {
+      videoElementsRef.current.set(layerId, videoElement);
+    } else {
+      videoElementsRef.current.delete(layerId);
+    }
+  }, []);
 
   // 使用全局主题
   const { themeStyle, setThemeStyle } = useTheme();
@@ -1299,6 +1523,7 @@ const Canvas: React.FC<CanvasProps> = ({
                 onCommentAdd={onCommentAdd}
                 onCommentUpdate={onCommentUpdate}
                 onFillToDialog={onFillToDialog}
+                onVideoElementChange={handleVideoElementChange}
               />
             );
           })}
@@ -4584,29 +4809,37 @@ const Canvas: React.FC<CanvasProps> = ({
 
         if (selectedVideoLayers.length !== 1) return null;
 
-        // TODO: 获取 video 元素和实现视频控制面板 - imageCache 尚未实现
-        // 暂时返回 null，等待视频缓存系统实现
-        return null;
-        // const videoElement = imageCache.current.get(videoLayer.id);
-        // if (!videoElement || !(videoElement instanceof HTMLVideoElement)) return null;
+        const videoLayer = selectedVideoLayers[0];
+        const videoElement = videoElementsRef.current.get(videoLayer.id);
+        if (!videoElement) return null;
 
-        // TODO: 实现视频控制面板
-        // return (
-        //   <div
-        //     style={{
-        //       position: 'absolute',
-        //       left: screenX,
-        //       top: screenY + screenHeight + 8,
-        //       width: screenWidth,
-        //       zIndex: 2001,
-        //       pointerEvents: 'auto',
-        //     }}
-        //     onMouseDown={(e) => e.stopPropagation()}
-        //     onClick={(e) => e.stopPropagation()}
-        //   >
-        //     <VideoControls video={videoElement} />
-        //   </div>
-        // );
+        // 计算视频在屏幕上的位置
+        const scale = zoom / 100;
+        const screenX = videoLayer.x * scale + stagePos.x;
+        const screenY = videoLayer.y * scale + stagePos.y;
+        // 使用视频的实际宽高比计算显示尺寸
+        const aspectRatio = videoElement.videoWidth && videoElement.videoHeight
+          ? videoElement.videoWidth / videoElement.videoHeight
+          : 1;
+        const screenWidth = videoLayer.height * aspectRatio * scale;
+        const screenHeight = videoLayer.height * scale;
+
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: screenX,
+              top: screenY + screenHeight + 8,
+              width: screenWidth,
+              zIndex: 2001,
+              pointerEvents: 'auto',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <VideoControls video={videoElement} width={screenWidth} />
+          </div>
+        );
       })()}
 
       {/* Detail Panel - 根据样式显示不同组件 */}

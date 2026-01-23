@@ -219,7 +219,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
 
   const [config, setConfig] = useState<GenerationConfig>({
     mode: 'image', // 默认图片模式
-    model: 'Wan2.2-i2v-a14b',
+    model: 'qwen-image-edit', // 默认图像模型
     aspectRatio: '16:9',
     count: 1,
     prompt: '',
@@ -411,31 +411,12 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
   
   // 模型数据
   const modelData: Model[] = [
-    // 视频模型
-    {
-      id: 'ltx-2',
-      name: 'LTX 2',
-      mode: 'video',
-      description: '视频生成模型',
-      tags: ['Video'],
-      isUser: false,
-      isFavorite: false,
-    },
-    {
-      id: 'wan2.2',
-      name: 'Wan2.2',
-      mode: 'video',
-      description: '视频生成模型',
-      tags: ['Video'],
-      isUser: false,
-      isFavorite: false,
-    },
     // 图像模型
     {
-      id: 'qwen-edit',
-      name: 'Qwen Edit',
+      id: 'qwen-image-edit',
+      name: 'Qwen-Image-Edit',
       mode: 'image',
-      description: '图像生成模型',
+      description: '精准指令编辑、文字渲染',
       tags: ['Image', 'Edit'],
       isUser: false,
       isFavorite: false,
@@ -444,17 +425,45 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       id: 'z-image',
       name: 'Z-image',
       mode: 'image',
-      description: '图像生成模型',
+      description: '写实摄影、人像',
       tags: ['Image'],
       isUser: false,
       isFavorite: false,
     },
     {
-      id: 'hunyuan',
-      name: 'Hunyuan',
+      id: 'illustrious',
+      name: 'Illustrious',
       mode: 'image',
-      description: '图像生成模型',
-      tags: ['Image'],
+      description: '二次元/动漫插画',
+      tags: ['Image', 'Anime'],
+      isUser: false,
+      isFavorite: false,
+    },
+    // 视频模型
+    {
+      id: 'wan2.2',
+      name: 'Wan2.2',
+      mode: 'video',
+      description: '电影级质感、动作自然',
+      tags: ['Video'],
+      isUser: false,
+      isFavorite: false,
+    },
+    {
+      id: 'wan2.6',
+      name: 'Wan2.6',
+      mode: 'video',
+      description: '音画同步',
+      tags: ['Video'],
+      isUser: false,
+      isFavorite: false,
+    },
+    {
+      id: 'ltx-2',
+      name: 'LTX 2',
+      mode: 'video',
+      description: '音画同步、原生 4K',
+      tags: ['Video', '4K'],
       isUser: false,
       isFavorite: false,
     },
@@ -920,7 +929,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
             <div
               data-tab="image"
               onClick={() => {
-                setConfig(prev => ({ ...prev, mode: 'image' }));
+                setConfig(prev => ({ ...prev, mode: 'image', model: 'qwen-image-edit' }));
               }}
               style={{
                 position: 'relative',
@@ -959,7 +968,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
             <div
               data-tab="video"
               onClick={() => {
-                setConfig(prev => ({ ...prev, mode: 'video' }));
+                setConfig(prev => ({ ...prev, mode: 'video', model: 'wan2.2' }));
               }}
               style={{
                 position: 'relative',
@@ -1037,258 +1046,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
             alignSelf: 'stretch',
           }}
         >
-          {/* 视频模式的图片上传区域 - 已移到下方和 Lora 同一行 */}
-          {false && config.mode === 'video' && config.videoCapability !== 'text-to-video' && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              {/* 首帧上传框 */}
-              <div
-                style={{
-                  position: 'relative',
-                  width: 48,
-                  height: 48,
-                  flexShrink: 0,
-                }}
-              >
-                {config.videoStartFrame ? (
-                  <>
-                    {/* 内容容器 - 用于遮住关闭按钮 */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: 48,
-                        height: 48,
-                        borderRadius: BorderRadius.small,
-                        overflow: 'hidden',
-                        border: `1px solid rgba(255, 255, 255, 0.12)`,
-                      }}
-                    >
-                      <img
-                        src={config.videoStartFrame}
-                        alt="Start Frame"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    </div>
-
-                    {/* 删除按钮 - hover 时显示，被圆角遮住一部分，放在外层避免被overflow遮挡 */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfig(prev => ({ ...prev, videoStartFrame: undefined }));
-                      }}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: 12,
-                        height: 12,
-                        background: Colors.text.primary,
-                        border: 'none',
-                        borderRadius: '50%',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 0,
-                        zIndex: 1001,
-                        transform: 'translate(25%, -25%)',
-                        pointerEvents: 'auto',
-                      }}
-                    >
-                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                        <path d="M2 2L6 6M6 2L2 6" stroke="rgba(255, 255, 255, 0.85)" strokeWidth="1" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                  </>
-                ) : (
-                  // 上传按钮
-                  <label
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: BorderRadius.small,
-                      border: `1px dashed ${isLightTheme ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.3)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = isLightTheme ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.3)';
-                    }}
-                  >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const url = event.target?.result as string;
-                            setConfig(prev => ({ ...prev, videoStartFrame: url }));
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 5V19M5 12H19" stroke={isLightTheme ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </label>
-                )}
-              </div>
-
-              {/* 首尾帧模式下的切换图标 */}
-              {config.videoCapability === 'first-last-frame' && (
-                <>
-                  {/* 切换图标 */}
-                  <img
-                    src={iconSwitch}
-                    alt="Switch"
-                    width={12}
-                    height={12}
-                    style={{
-                      flexShrink: 0,
-                      cursor: 'pointer',
-                      filter: isLightTheme ? 'brightness(0.3)' : 'invert(1) brightness(1)',
-                    }}
-                    onClick={() => {
-                      // 交换首尾帧
-                      setConfig(prev => ({
-                        ...prev,
-                        videoStartFrame: prev.videoEndFrame,
-                        videoEndFrame: prev.videoStartFrame,
-                      }));
-                    }}
-                  />
-
-                  {/* 尾帧上传框 */}
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: 48,
-                      height: 48,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {config.videoEndFrame ? (
-                      <>
-                        {/* 内容容器 - 用于遮住关闭按钮 */}
-                        <div
-                          style={{
-                            position: 'relative',
-                            width: 48,
-                            height: 48,
-                            borderRadius: BorderRadius.small,
-                            overflow: 'hidden',
-                            border: `1px solid rgba(255, 255, 255, 0.12)`,
-                          }}
-                        >
-                          <img
-                            src={config.videoEndFrame}
-                            alt="End Frame"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                            }}
-                          />
-                        </div>
-
-                        {/* 删除按钮 - hover 时显示，被圆角遮住一部分，放在外层避免被overflow遮挡 */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfig(prev => ({ ...prev, videoEndFrame: undefined }));
-                          }}
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            right: 0,
-                            width: 12,
-                            height: 12,
-                            background: Colors.text.primary,
-                            border: 'none',
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 0,
-                            zIndex: 1001,
-                            transform: 'translate(25%, -25%)',
-                            pointerEvents: 'auto',
-                          }}
-                        >
-                          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                            <path d="M2 2L6 6M6 2L2 6" stroke={Colors.background.primary} strokeWidth="1" strokeLinecap="round" />
-                          </svg>
-                        </button>
-                      </>
-                    ) : (
-                      // 上传按钮
-                      <label
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: BorderRadius.small,
-                          border: `1px dashed rgba(255, 255, 255, 0.3)`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                        }}
-                      >
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (event) => {
-                                const url = event.target?.result as string;
-                                setConfig(prev => ({ ...prev, videoEndFrame: url }));
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 5V19M5 12H19" stroke="rgba(255, 255, 255, 0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </label>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* 视频模式上传框 - 单独渲染，避免空白 */}
+          {/* 视频模式上传框 */}
           {config.mode === 'video' && config.videoCapability !== 'text-to-video' && (
             <div
               style={{
@@ -2540,14 +2298,21 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               ref={textareaRef}
               className="bottom-dialog-textarea"
               value={config.prompt}
-              onChange={(e) => setConfig(prev => ({ ...prev, prompt: e.target.value }))}
+              onChange={(e) => {
+                setConfig(prev => ({ ...prev, prompt: e.target.value }));
+                // 自动调整高度：首页5行(120px)，画布3行(72px)
+                const maxH = isLandingPage ? 120 : 72;
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, maxH) + 'px';
+              }}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsInputFocused(true)}
               onBlur={() => setIsInputFocused(false)}
               placeholder={selectedLayer ? '基于此图片进行AI生图...' : (isLandingPage ? displayedPlaceholder : CANVAS_PLACEHOLDER)}
               style={{
                 flex: 1,
-                height: '100%',
+                minHeight: 24,
+                maxHeight: isLandingPage ? 120 : 72,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
@@ -2561,6 +2326,9 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                 padding: 0,
                 margin: 0,
                 transition: 'color 0.3s ease',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                wordWrap: 'break-word',
               }}
               rows={1}
             />
@@ -2755,7 +2523,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                       fontFamily: 'SF Pro Display, -apple-system, sans-serif',
                       lineHeight: '20px',
                     }}>
-                      {modelData.find(m => m.id === config.model)?.name || (config.mode === 'video' ? 'LTX 2' : 'Z-image')}
+                      {modelData.find(m => m.id === config.model)?.name || (config.mode === 'video' ? 'Wan2.2' : 'Qwen-Image-Edit')}
                     </span>
                     <img
                       src={iconArrowDown}

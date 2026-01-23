@@ -1647,25 +1647,15 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                     }}
                   >
                     {/* Lora 图片或背景 */}
-                    {selectedLoraModel?.imageUrl ? (
-                      <img
-                        src={selectedLoraModel.imageUrl}
-                        alt={selectedLoraModel.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          background: Colors.background.tertiary,
-                        }}
-                      />
-                    )}
+                    <img
+                      src={selectedLoraModel?.imageUrl || `https://picsum.photos/seed/${lora.id}/200/300`}
+                      alt={selectedLoraModel?.name || 'Lora'}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
 
                     {/* 半透明遮罩 - 不兼容时更深 */}
                     <div
@@ -1695,7 +1685,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                       {isCompatible ? (
                         <span
                           style={{
-                            fontSize: Typography.englishBody.fontSize.small,
+                            fontSize: 14,
                             fontWeight: Typography.englishHeading.fontWeight,
                             color: Colors.text.primary,
                             fontFamily: Typography.englishHeading.fontFamily,

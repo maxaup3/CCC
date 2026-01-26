@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImageLayer } from '../types';
-import { useTheme, getThemeStyles, isLightTheme } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 import { Colors } from '../styles/constants';
 
 interface ImageDetailsProps {
@@ -10,9 +10,9 @@ interface ImageDetailsProps {
 }
 
 const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpdate: _onLayerUpdate }) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
-  const isLight = isLightTheme(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
+  const isLight = checkLightTheme(themeMode);
 
   // 使用与 LayerPanel 相同的主题背景
   const textPrimary = Colors.text.primary;
@@ -33,8 +33,7 @@ const ImageDetails: React.FC<ImageDetailsProps> = ({ layer, onClose, onLayerUpda
         width: 244,
         background: theme.panelBackground,
         backdropFilter: theme.panelBackdrop,
-        border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
-        borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
+        border: theme.panelBorder,
         borderRadius: parseInt(theme.panelBorderRadius),
         boxShadow: theme.panelShadow,
         display: 'flex',

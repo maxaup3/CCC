@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { VideoCapability } from '../types';
 import { Typography, Spacing } from '../styles/constants';
-import { useTheme, getThemeStyles } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 
 interface CapabilitySelectorProps {
   selectedCapability: VideoCapability;
@@ -18,11 +18,11 @@ const CapabilitySelector: React.FC<CapabilitySelectorProps> = ({
   position,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
 
   // 判断是否为浅色主题
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   const capabilities: Array<{ id: VideoCapability; name: string; description: string }> = [
     {
@@ -54,7 +54,7 @@ const CapabilitySelector: React.FC<CapabilitySelectorProps> = ({
         width: 200,
         background: isLightTheme ? '#F5F5F5' : '#2A2A2A',
         backdropFilter: 'none',
-        border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
+        border: theme.panelBorder,
         borderRadius: 8,
         boxShadow: theme.panelShadow,
         zIndex: 10001,

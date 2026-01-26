@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ImageLayer } from '../types';
 import { BorderRadius } from '../styles/constants';
-import { useTheme, getThemeStyles, isLightTheme } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
+
+const isLightTheme = checkLightTheme;
 import { getResolutionLevel } from '../utils/imageUtils';
 
 // 图标路径
@@ -47,9 +49,9 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
   onMergeLayers,
   imageBottomY,
 }) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
-  const isLight = isLightTheme(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
+  const isLight = isLightTheme(themeMode);
 
   // 辅助函数：根据主题获取图标 filter
   const getIconFilter = () => {
@@ -198,8 +200,7 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
         gap: 0,
         background: theme.panelBackground,
         backdropFilter: theme.panelBackdrop,
-        border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
-        borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
+        border: theme.panelBorder,
         borderRadius: parseInt(theme.panelBorderRadius),
         padding: '4px',
         boxShadow: theme.panelShadow,

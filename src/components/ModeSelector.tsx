@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GenerationMode } from '../types';
 import { Colors, Typography, Spacing } from '../styles/constants';
-import { useTheme, getThemeStyles } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 
 interface ModeSelectorProps {
   selectedMode: GenerationMode;
@@ -17,12 +17,12 @@ const ModeSelector: React.FC<ModeSelectorProps> = ({
   onClose,
   position,
 }) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 判断是否为浅色主题
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   const modes: Array<{ id: GenerationMode; name: string; description: string }> = [
     {
@@ -49,8 +49,7 @@ const ModeSelector: React.FC<ModeSelectorProps> = ({
         width: 180,
         background: isLightTheme ? '#F5F5F5' : '#2A2A2A',
         backdropFilter: 'none',
-        border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
-        borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
+        border: theme.panelBorder,
         borderRadius: 8,
         boxShadow: theme.panelShadow,
         zIndex: 10001,

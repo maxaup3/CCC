@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Model } from '../types';
 import { Colors, Typography, BorderRadius, Spacing } from '../styles/constants';
-import { useTheme, getThemeStyles } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 
 interface ModelDropdownProps {
   models: Model[];
@@ -19,12 +19,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   onClose,
   position,
 }) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 判断是否为浅色主题
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   // 点击外部关闭由父组件处理，这里不需要
 
@@ -41,8 +41,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         width: 240, // 精确匹配设计稿
         background: isLightTheme ? '#F5F5F5' : '#2A2A2A',
         backdropFilter: 'none',
-        border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
-        borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
+        border: theme.panelBorder,
         borderRadius: 8,
         boxShadow: theme.panelShadow,
         zIndex: 10001,

@@ -29,190 +29,13 @@ import LandingPage from './components/LandingPage'
 import AllProjectsPage from './components/AllProjectsPage'
 import LoadingScreen from './components/LoadingScreen'
 import { ImageLayer, GenerationTask, GenerationConfig, EditMode } from './types'
-import { ThemeProvider, useTheme, getThemeStyles, isLightTheme, ThemeStyle } from './contexts/ThemeContext'
+import { ThemeProvider, useTheme, getThemeStyles, isLightTheme } from './contexts/ThemeContext'
 import {
   getViewportCenter,
   getImageSizeFromAspectRatio,
   calculateGridLayout,
   getGridPosition,
 } from './utils/canvasUtils'
-
-// 主题列表配置
-const THEME_LIST: { id: ThemeStyle; name: string; color: string }[] = [
-  { id: 'original', name: '默认', color: '#38BDFF' },
-  { id: 'professional', name: '专业', color: '#1A1A1C' },
-  { id: 'cyberpunk', name: '赛博朋克', color: '#8B00FF' },
-  { id: 'minimal', name: '极简', color: '#121212' },
-  { id: 'runway', name: 'Runway', color: '#0EA5E9' },
-  { id: 'anthropic', name: 'Anthropic', color: '#D97757' },
-  { id: 'terminal', name: '终端', color: '#00FF41' },
-  { id: 'neumorphism', name: '新拟态', color: '#D4A574' },
-  { id: 'garden', name: '花园', color: '#66BB6A' },
-  { id: 'spectrum', name: '光谱', color: '#8B00FF' },
-  { id: 'genz', name: 'Gen-Z', color: '#2563EB' },
-  { id: 'minimalism', name: '极简主义', color: '#1C1917' },
-  { id: 'flat', name: '扁平', color: '#3B82F6' },
-  { id: 'glassmorphism', name: '玻璃态', color: '#667EEA' },
-  { id: 'aurora', name: '极光', color: '#39FF14' },
-]
-
-// 主题切换器组件
-function ThemeSwitcher() {
-  const { themeStyle, setThemeStyle } = useTheme()
-  const theme = getThemeStyles(themeStyle)
-  const lightTheme = isLightTheme(themeStyle)
-  const [isOpen, setIsOpen] = useState(false)
-
-  const currentTheme = THEME_LIST.find(t => t.id === themeStyle) || THEME_LIST[0]
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 20,
-        right: 20,
-        zIndex: 1000,
-      }}
-    >
-      {/* 主题选择面板 */}
-      {isOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 50,
-            right: 0,
-            width: 200,
-            maxHeight: 320,
-            overflowY: 'auto',
-            background: theme.panelBackground || (lightTheme ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 30, 30, 0.95)'),
-            backdropFilter: theme.panelBackdrop || 'blur(20px)',
-            border: theme.panelBorder || `1px solid ${lightTheme ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}`,
-            borderRadius: theme.panelBorderRadius || '12px',
-            boxShadow: theme.panelShadow || '0 8px 32px rgba(0, 0, 0, 0.3)',
-            padding: '8px 0',
-          }}
-        >
-          {THEME_LIST.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setThemeStyle(item.id)
-                setIsOpen(false)
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                width: '100%',
-                padding: '10px 14px',
-                background: themeStyle === item.id
-                  ? (lightTheme ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)')
-                  : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'background 0.2s',
-                textAlign: 'left',
-              }}
-              onMouseEnter={(e) => {
-                if (themeStyle !== item.id) {
-                  e.currentTarget.style.background = lightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (themeStyle !== item.id) {
-                  e.currentTarget.style.background = 'transparent'
-                }
-              }}
-            >
-              {/* 主题颜色预览 */}
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: item.color,
-                  border: `2px solid ${lightTheme ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)'}`,
-                  flexShrink: 0,
-                }}
-              />
-              {/* 主题名称 */}
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: themeStyle === item.id ? 600 : 400,
-                  color: theme.textPrimary || (lightTheme ? '#131314' : 'rgba(255,255,255,0.9)'),
-                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                }}
-              >
-                {item.name}
-              </span>
-              {/* 选中标记 */}
-              {themeStyle === item.id && (
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  style={{ marginLeft: 'auto' }}
-                >
-                  <path
-                    d="M13.5 4.5L6 12L2.5 8.5"
-                    stroke={theme.textAccent || '#38BDFF'}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* 切换按钮 */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: '50%',
-          background: theme.buttonBackground || (lightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)'),
-          backdropFilter: 'blur(10px)',
-          border: `1px solid ${lightTheme ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)'}`,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.2s',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)'
-          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)'
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
-        }}
-        title="切换主题"
-      >
-        {/* 调色板图标 */}
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C12.55 22 13 21.55 13 21V20C13 19.45 13.45 19 14 19H15C17.21 19 19 17.21 19 15V14C19 13.45 19.45 13 20 13H21C21.55 13 22 12.55 22 12C22 6.48 17.52 2 12 2Z"
-            stroke={currentTheme.color}
-            strokeWidth="2"
-            fill="none"
-          />
-          <circle cx="7.5" cy="11.5" r="1.5" fill={currentTheme.color} />
-          <circle cx="10.5" cy="7.5" r="1.5" fill={currentTheme.color} />
-          <circle cx="14.5" cy="7.5" r="1.5" fill={currentTheme.color} />
-          <circle cx="16.5" cy="11.5" r="1.5" fill={currentTheme.color} />
-        </svg>
-      </button>
-    </div>
-  )
-}
 
 // 自定义形状
 const customShapeUtils = [AIImageShapeUtil]
@@ -440,6 +263,7 @@ function TldrawAppContent() {
   const [showLandingPage, setShowLandingPage] = useState(true)
   const [showAllProjectsPage, setShowAllProjectsPage] = useState(false)
   const [showLoading, setShowLoading] = useState(false)
+  const [isLoadingFadingOut, setIsLoadingFadingOut] = useState(false) // loading 渐出状态
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [pendingGenerationConfig, setPendingGenerationConfig] = useState<GenerationConfig | null>(null)
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
@@ -1555,10 +1379,17 @@ function TldrawAppContent() {
     setShowLandingPage(false)
   }, [])
 
-  // Loading 完成回调
+  // Loading 完成回调 - 开始渐出
+  const handleLoadingFadeStart = useCallback(() => {
+    console.log('🌅 Loading fade out starting...')
+    setIsLoadingFadingOut(true)
+  }, [])
+
+  // Loading 完全消失后的回调
   const handleLoadingComplete = useCallback(() => {
     console.log('✅ Loading complete, pendingConfig:', pendingGenerationConfigRef.current)
     setShowLoading(false)
+    setIsLoadingFadingOut(false)
     // 生成任务会在 handleMount 中处理（当 editor 准备好时）
     // pendingGenerationConfigRef.current 保持不变，等待 handleMount 使用
   }, [])
@@ -1608,18 +1439,22 @@ function TldrawAppContent() {
       : 'linear-gradient(135deg, #0a0b14 0%, #12141f 50%, #0f1118 100%)'
   }
 
-  // 如果显示加载屏幕（带过渡网格）
-  if (showLoading) {
+  // Loading 屏幕渐出动画时长
+  const loadingFadeOutDuration = 500
+
+  // 渲染 Loading 覆盖层（当 showLoading 为 true 时，浮在画布上方）
+  const renderLoadingOverlay = () => {
+    if (!showLoading) return null
+
     const loadingBackground = getThemedCanvasBackground()
     const needsLoadingAnimation = loadingBackground.includes('gradient')
-    // 使用主题的网格颜色
     const gridLineColor = theme.gridColor || (lightTheme
       ? 'rgba(102, 126, 234, 0.06)'
       : 'rgba(102, 126, 234, 0.1)')
 
     return (
       <>
-        {/* 全局背景层 */}
+        {/* Loading 背景层 - 渐出时也淡出 */}
         <div
           style={{
             position: 'fixed',
@@ -1629,24 +1464,41 @@ function TldrawAppContent() {
             height: '100vh',
             background: loadingBackground,
             backgroundSize: needsLoadingAnimation ? '200% 200%' : undefined,
-            animation: needsLoadingAnimation ? 'gradient-shift 15s ease infinite' : undefined,
-            zIndex: -10,
+            animation: isLoadingFadingOut
+              ? `loading-bg-fade-out ${loadingFadeOutDuration}ms cubic-bezier(0.4, 0, 0.2, 1) forwards`
+              : (needsLoadingAnimation ? 'gradient-shift 15s ease infinite' : undefined),
+            zIndex: 9998,
+            pointerEvents: isLoadingFadingOut ? 'none' : 'auto',
           }}
         />
 
-        {/* 网格背景（过渡用） */}
-        <div className="canvas-grid-container">
+        {/* 网格背景（过渡用） - 渐出时也淡出 */}
+        <div
+          className="canvas-grid-container-loading"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: 9999,
+            animation: isLoadingFadingOut
+              ? `loading-bg-fade-out ${loadingFadeOutDuration}ms cubic-bezier(0.4, 0, 0.2, 1) forwards`
+              : undefined,
+          }}
+        >
           {/* 垂直网格线 */}
           {[...Array(12)].map((_, i) => (
             <div
               key={`canvas-v-${i}`}
-              className="canvas-grid-line"
               style={{
+                position: 'absolute',
                 left: `${(i + 1) * 8.33}%`,
                 top: 0,
                 width: '1px',
                 height: '100%',
-                opacity: 1,
+                background: `linear-gradient(90deg, transparent, ${gridLineColor}, transparent)`,
               }}
             />
           ))}
@@ -1654,13 +1506,13 @@ function TldrawAppContent() {
           {[...Array(8)].map((_, i) => (
             <div
               key={`canvas-h-${i}`}
-              className="canvas-grid-line"
               style={{
+                position: 'absolute',
                 left: 0,
                 top: `${(i + 1) * 12.5}%`,
                 width: '100%',
                 height: '1px',
-                opacity: 1,
+                background: `linear-gradient(90deg, transparent, ${gridLineColor}, transparent)`,
               }}
             />
           ))}
@@ -1676,25 +1528,31 @@ function TldrawAppContent() {
             }
           }
 
-          .canvas-grid-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-          }
-
-          .canvas-grid-line {
-            position: absolute;
-            background: linear-gradient(90deg, transparent, ${gridLineColor}, transparent);
+          @keyframes loading-bg-fade-out {
+            from {
+              opacity: 1;
+            }
+            to {
+              opacity: 0;
+            }
           }
         `}</style>
 
-        <LoadingScreen onComplete={handleLoadingComplete} duration={1500} />
+        <LoadingScreen
+          onFadeStart={handleLoadingFadeStart}
+          onComplete={handleLoadingComplete}
+          duration={1500}
+          fadeOutDuration={loadingFadeOutDuration}
+        />
       </>
     )
+  }
+
+  // 如果只显示 loading（画布还没准备好），仍然只渲染 loading
+  // 但当 loading 开始渐出时，画布已经在下层渲染好了
+  if (showLoading && !isLoadingFadingOut) {
+    // 首次 loading，画布还没渲染，只显示 loading 层
+    return renderLoadingOverlay()
   }
 
   // 如果显示首页或正在过渡，渲染首页
@@ -2151,9 +2009,6 @@ function TldrawAppContent() {
             />
           )
         })}
-
-      {/* 主题切换器 */}
-      <ThemeSwitcher />
 
       {/* 右键菜单 */}
       {contextMenu && (

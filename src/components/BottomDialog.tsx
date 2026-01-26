@@ -7,7 +7,7 @@ import ModelDropdown from './ModelDropdown';
 import CapabilitySelector from './CapabilitySelector';
 import LoraSelector from './LoraSelector';
 import LibraryDialog from './LibraryDialog';
-import { useTheme, getThemeStyles } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 // 导入图标
 const iconModel = '/assets/icons/model.svg';
 const iconMagic = '/assets/icons/magic.svg';
@@ -182,12 +182,12 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
   isLandingPage = false,
   modeSelectorStyle = 'colored-text',
 }, ref) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // 判断是否为浅色主题
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   // 辅助函数：根据主题获取文字颜色
   const getTextColor = (opacity: number) => {
@@ -2660,7 +2660,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                   background: isLightTheme ? '#F5F5F5' : '#2A2A2A',
                   backdropFilter: 'none',
                   WebkitBackdropFilter: 'none',
-                  border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
+                  border: theme.panelBorder,
                   borderRadius: parseInt(theme.panelBorderRadius),
                   overflow: 'hidden',
                   minWidth: config.mode === 'video' ? 320 : 240,

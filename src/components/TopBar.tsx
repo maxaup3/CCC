@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Colors, Typography, BorderRadius, Spacing } from '../styles/constants';
-import { useTheme, getThemeStyles } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 import sLogo from '../assets/icons/s_logo.svg?url';
 
 interface TopBarProps {
@@ -39,11 +39,11 @@ const TopBar: React.FC<TopBarProps> = ({
   onDuplicate,
   onShowAllImages,
 }) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
 
   // 判断是否为浅色主题
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(projectName);
@@ -318,13 +318,12 @@ const TopBar: React.FC<TopBarProps> = ({
             alignItems: 'center',
             gap: 4,
             padding: '4px 8px',
-            background: themeStyle === 'original' ? Colors.theme.primaryLight : theme.buttonBackground,
-            backdropFilter: themeStyle === 'original' ? undefined : theme.panelBackdrop,
+            background: theme.buttonBackground,
+            backdropFilter: theme.panelBackdrop,
             border: 'none',
-            borderRadius: themeStyle === 'original' ? BorderRadius.large : parseInt(theme.buttonBorderRadius),
+            borderRadius: parseInt(theme.buttonBorderRadius),
             height: 36,
             transition: 'all 0.3s ease',
-            boxShadow: themeStyle === 'cyberpunk' ? `0 0 15px ${(theme as any).glowColor}40` : undefined,
           }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -350,13 +349,12 @@ const TopBar: React.FC<TopBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             border: 'none',
-            borderRadius: themeStyle === 'original' ? BorderRadius.large : parseInt(theme.buttonBorderRadius),
+            borderRadius: parseInt(theme.buttonBorderRadius),
             padding: '4px 4px',
-            background: themeStyle === 'original' ? Colors.background.primary : theme.buttonBackground,
-            backdropFilter: themeStyle === 'original' ? undefined : theme.panelBackdrop,
+            background: theme.buttonBackground,
+            backdropFilter: theme.panelBackdrop,
             height: 36,
             transition: 'all 0.3s ease',
-            boxShadow: themeStyle === 'cyberpunk' ? `0 0 15px ${(theme as any).glowColor}40` : undefined,
           }}
         >
           <button

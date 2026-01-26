@@ -44,8 +44,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
   isTransitioning = false,
   gridTransitionVersion = 0,
 }) => {
-  const { themeStyle, setThemeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
+  const { themeMode, setThemeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
   const [showScrollContent, setShowScrollContent] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDialogExpanded, setIsDialogExpanded] = useState(true);
@@ -166,7 +166,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [dialogExpanded, setDialogExpanded] = useState(true);
 
   // 判断是否为浅色主题
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   // 获取当前主题颜色
   const colors = useMemo(() => getThemeColors(isLightTheme), [isLightTheme]);
@@ -1598,8 +1598,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   position: 'relative',
                 }}
                 onClick={() => {
-                  // 切换亮/暗色主题：亮色用 flat，暗色用 original
-                  setThemeStyle(isLightTheme ? 'original' : 'flat');
+                  // 切换亮/暗色主题
+                  setThemeMode(isLightTheme ? 'dark' : 'light');
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}

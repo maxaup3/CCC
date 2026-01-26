@@ -9,7 +9,7 @@ import unlockIcon from '../assets/icons/unlock.svg?url';
 import hideIcon from '../assets/icons/hide.svg?url';
 import eyesIcon from '../assets/icons/eyes.svg?url';
 import LibraryDialog from './LibraryDialog';
-import { useTheme, getThemeStyles, isLightTheme } from '../contexts/ThemeContext';
+import { useTheme, getThemeStyles, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 
 interface LayerPanelProps {
   layers: ImageLayer[];
@@ -36,9 +36,9 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
   onLayerAdd,
   onLayerReorder,
 }) => {
-  const { themeStyle } = useTheme();
-  const theme = getThemeStyles(themeStyle);
-  const isLight = isLightTheme(themeStyle);
+  const { themeMode } = useTheme();
+  const theme = getThemeStyles(themeMode);
+  const isLight = checkLightTheme(themeMode);
 
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
   const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
@@ -204,8 +204,7 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
           width: 244,
           background: isLight ? '#F5F5F5' : '#2A2A2A',
           backdropFilter: theme.panelBackdrop,
-          border: themeStyle === 'cyberpunk' ? 'none' : theme.panelBorder,
-          borderImage: themeStyle === 'cyberpunk' ? (theme as any).panelBorderImage : undefined,
+          border: theme.panelBorder,
           borderRadius: 10,
           boxShadow: theme.panelShadow,
           display: 'flex',

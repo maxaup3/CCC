@@ -1,25 +1,43 @@
-import React, { useEffect } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import React, { useEffect, useState } from 'react';
+import { useTheme, isLightTheme as checkLightTheme } from '../contexts/ThemeContext';
 
 interface LoadingScreenProps {
   onComplete?: () => void;
-  duration?: number;
+  onFadeStart?: () => void; // 渐出开始时的回调
+  duration?: number; // 总持续时间（包含渐出）
+  fadeOutDuration?: number; // 渐出动画时长
 }
 
-const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete, duration = 1500 }) => {
-  const { themeStyle } = useTheme();
+const LoadingScreen: React.FC<LoadingScreenProps> = ({
+  onComplete,
+  onFadeStart,
+  duration = 1500,
+  fadeOutDuration = 500, // 默认 500ms 渐出
+}) => {
+  const { themeMode } = useTheme();
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
-  const isLightTheme = themeStyle === 'anthropic' || themeStyle === 'neumorphism' || themeStyle === 'genz' || themeStyle === 'minimalism' || themeStyle === 'flat';
+  const isLightTheme = checkLightTheme(themeMode);
 
   useEffect(() => {
+    // 在总时长减去渐出时长后开始渐出
+    const fadeOutStartTime = Math.max(duration - fadeOutDuration, 500);
+
+    const fadeOutTimer = setTimeout(() => {
+      setIsFadingOut(true);
+      onFadeStart?.();
+    }, fadeOutStartTime);
+
+    // 总时长后完成
     const completeTimer = setTimeout(() => {
       onComplete?.();
     }, duration);
 
     return () => {
+      clearTimeout(fadeOutTimer);
       clearTimeout(completeTimer);
     };
-  }, [duration, onComplete]);
+  }, [duration, fadeOutDuration, onComplete, onFadeStart]);
 
   return (
     <div
@@ -34,7 +52,9 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete, duration = 15
         justifyContent: 'center',
         zIndex: 10000,
         pointerEvents: 'none',
-        animation: 'loading-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        animation: isFadingOut
+          ? `loading-fade-out ${fadeOutDuration}ms cubic-bezier(0.4, 0, 0.2, 1) forwards`
+          : 'loading-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards',
       }}
     >
       {/* 加载中文字 */}
@@ -45,7 +65,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete, duration = 15
           color: isLightTheme ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.8)',
           fontFamily: 'var(--font-body)',
           letterSpacing: '0.05em',
-          animation: 'fade-pulse 2s ease-in-out infinite',
+          animation: isFadingOut ? 'none' : 'fade-pulse 2s ease-in-out infinite',
           display: 'flex',
           alignItems: 'center',
           gap: 6,
@@ -62,7 +82,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete, duration = 15
             justifyContent: 'flex-start',
           }}
         >
-          <span style={{ animation: 'dots 1.5s steps(4) infinite' }}></span>
+          <span style={{ animation: isFadingOut ? 'none' : 'dots 1.5s steps(4) infinite' }}></span>
         </span>
       </div>
 
@@ -76,6 +96,17 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete, duration = 15
           to {
             opacity: 1;
             transform: scale(1);
+          }
+        }
+
+        @keyframes loading-fade-out {
+          from {
+            opacity: 1;
+            transform: scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: scale(1.02);
           }
         }
 

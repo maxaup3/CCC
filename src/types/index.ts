@@ -59,6 +59,10 @@ export interface GenerationConfig {
   videoResolution?: string; // 视频分辨率，如 '720p', '1440p'
   videoStartFrame?: string; // 首帧图片（用于图生视频和首尾帧）
   videoEndFrame?: string; // 尾帧图片（仅用于首尾帧）
+  // 批次生成信息
+  batchId?: string; // 批次ID，用于标识同一批生成的图片
+  batchIndex?: number; // 当前图片在批次中的索引（0-based）
+  batchTotal?: number; // 批次中的总图片数
 }
 
 export interface GenerationTask {

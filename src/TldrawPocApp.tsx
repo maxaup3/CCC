@@ -178,7 +178,10 @@ const CanvasContent = track(function CanvasContent({
     const unsubscribe = editor.store.listen(() => {
       const shapes = editor.getCurrentPageShapes()
       const aiShapes = shapes.filter((s: any) => s.type === 'ai-image')
-      const layers = aiShapes.map(shapeToLayer)
+      // 按 Z 轴倒序排列（最上层的在数组前面，用于图层面板显示）
+      const sortedAiShapes = [...aiShapes].reverse()
+      const layers = sortedAiShapes.map(shapeToLayer)
+      console.log('📊 Layers updated:', layers.map(l => l.id.slice(-6)))
       onLayersChange(layers)
     }, { source: 'all', scope: 'document' })
 
@@ -260,6 +263,7 @@ function TldrawAppContent() {
     if (!editor || !selectedLayer) {
       setSelectedLayerScreenPos(null)
       lastBoundsRef.current = null
+      setIsLayerTransforming(false)
       return
     }
 
@@ -267,6 +271,7 @@ function TldrawAppContent() {
     if (!shape) {
       setSelectedLayerScreenPos(null)
       lastBoundsRef.current = null
+      setIsLayerTransforming(false)
       return
     }
 
@@ -274,6 +279,7 @@ function TldrawAppContent() {
     if (!bounds) {
       setSelectedLayerScreenPos(null)
       lastBoundsRef.current = null
+      setIsLayerTransforming(false)
       return
     }
 
@@ -303,18 +309,18 @@ function TldrawAppContent() {
           clearTimeout(transformTimeoutRef.current)
         }
 
-        // 800ms 后如果没有新的变化，则认为变换结束
+        // 500ms 后如果没有新的变化，则认为变换结束
         transformTimeoutRef.current = setTimeout(() => {
           setIsLayerTransforming(false)
           setSelectedLayerScreenPos(newBounds)
-        }, 800)
+        }, 500)
       } else {
-        // 位置和尺寸稳定，显示工具栏
-        setIsLayerTransforming(false)
+        // 位置和尺寸稳定，保持当前状态并更新位置
         setSelectedLayerScreenPos(newBounds)
       }
     } else {
-      // 首次设置位置
+      // 首次选中，立即显示工具栏
+      setIsLayerTransforming(false)
       setSelectedLayerScreenPos(newBounds)
     }
 
@@ -584,6 +590,7 @@ function TldrawAppContent() {
         const startY = centerPage.y - totalHeight / 2
 
         const newTasks: GenerationTask[] = []
+        const batchId = `batch-${Date.now()}`  // 批次ID，用于标识同一批生成的图片
 
         // 根据数量创建多个 shape
         for (let i = 0; i < count; i++) {
@@ -595,6 +602,14 @@ function TldrawAppContent() {
           const row = is2x2 ? Math.floor(i / 2) : 0
           const shapeX = startX + col * (imageSize.width + gap)
           const shapeY = startY + row * (imageSize.height + gap)
+
+          // 扩展 config 添加批次信息
+          const configWithBatch = {
+            ...config,
+            batchId,
+            batchIndex: i,
+            batchTotal: count,
+          }
 
           // 创建占位符shape
           ed.createShape({
@@ -608,7 +623,7 @@ function TldrawAppContent() {
               url: '',
               prompt: config.prompt,
               isVideo: config.mode === 'video',
-              generationConfig: JSON.stringify(config),
+              generationConfig: JSON.stringify(configWithBatch),
             },
           })
 
@@ -817,37 +832,57 @@ function TldrawAppContent() {
   // 图层重排序（改变 Z 轴顺序）
   const handleLayerReorder = useCallback((fromIndex: number, toIndex: number) => {
     if (!editor) return
+    if (fromIndex === toIndex) return
 
-    // layers 数组是从上到下排列的（index 0 是最上层）
-    // tldraw 的 z-index 是从下到上的（越大越靠上）
-    const layerToMove = layers[fromIndex]
-    if (!layerToMove) return
+    console.log('🔄 handleLayerReorder called:', { fromIndex, toIndex, layersCount: layers.length })
 
-    const targetLayer = layers[toIndex]
-    if (!targetLayer) return
+    // layers 数组是从上到下排列的（index 0 是最上层，Z轴最高）
+    // 在 tldraw 中，shapes 数组的顺序就是 z-index 顺序（后面的在上面）
+    // 我们的 layers 是 reversed 的，所以 layers[0] 是实际 shapes 数组的最后一个（最上层）
 
-    const shapeToMove = editor.getShape(layerToMove.id as TLShapeId)
-    const targetShape = editor.getShape(targetLayer.id as TLShapeId)
-    if (!shapeToMove || !targetShape) return
+    // 获取当前所有 ai-image shapes（按 tldraw 的 z-index 顺序，即后面的在上面）
+    const shapes = editor.getCurrentPageShapes()
+    const aiShapes = shapes.filter((s: any) => s.type === 'ai-image')
 
-    // 根据移动方向决定操作
+    // aiShapes 是 tldraw 的原始顺序（index 越大，z-index 越高）
+    // layers 是 reversed 的（index 越小，z-index 越高）
+    // 所以 layers[i] 对应 aiShapes[aiShapes.length - 1 - i]
+
+    const fromTldrawIndex = aiShapes.length - 1 - fromIndex
+    const toTldrawIndex = aiShapes.length - 1 - toIndex
+
+    console.log('🔄 Tldraw indices:', { fromTldrawIndex, toTldrawIndex })
+
+    const shapeToMove = aiShapes[fromTldrawIndex]
+    if (!shapeToMove) {
+      console.log('❌ Shape to move not found')
+      return
+    }
+
+    const shapeId = shapeToMove.id as TLShapeId
+
+    // 在面板中向上拖动 (fromIndex > toIndex) = Z轴变高 = 在 tldraw 中往后移
+    // 在面板中向下拖动 (fromIndex < toIndex) = Z轴变低 = 在 tldraw 中往前移
+
     if (fromIndex > toIndex) {
-      // 向上移动（在界面上向上 = Z轴向上）
-      editor.sendToBack([shapeToMove.id])
-      // 然后移动到目标位置之上
-      const shapesAbove = layers.slice(0, toIndex).map(l => editor.getShape(l.id as TLShapeId)).filter(Boolean)
-      if (shapesAbove.length > 0) {
-        editor.sendToBack(shapesAbove.map(s => s!.id))
+      // 向上移动（Z轴变高）
+      // 使用 bringForward 逐步向上移动
+      const steps = fromIndex - toIndex
+      console.log('⬆️ Moving up', steps, 'steps')
+      for (let i = 0; i < steps; i++) {
+        editor.bringForward([shapeId])
       }
     } else {
-      // 向下移动（在界面上向下 = Z轴向下）
-      editor.bringToFront([shapeToMove.id])
-      // 然后移动到目标位置之下
-      const shapesBelow = layers.slice(toIndex + 1).map(l => editor.getShape(l.id as TLShapeId)).filter(Boolean)
-      if (shapesBelow.length > 0) {
-        editor.bringToFront(shapesBelow.map(s => s!.id))
+      // 向下移动（Z轴变低）
+      // 使用 sendBackward 逐步向下移动
+      const steps = toIndex - fromIndex
+      console.log('⬇️ Moving down', steps, 'steps')
+      for (let i = 0; i < steps; i++) {
+        editor.sendBackward([shapeId])
       }
     }
+
+    console.log('✅ Reorder complete')
   }, [editor, layers])
 
   // 生成图片
@@ -901,6 +936,7 @@ function TldrawAppContent() {
 
     const newTasks: GenerationTask[] = []
     const shapeIds: string[] = []
+    const batchId = `batch-${Date.now()}`  // 批次ID，用于标识同一批生成的图片
 
     // 根据数量创建多个 shape
     for (let i = 0; i < count; i++) {
@@ -915,10 +951,18 @@ function TldrawAppContent() {
 
       shapeIds.push(placeholderShapeId as string)
 
+      // 扩展 config 添加批次信息
+      const configWithBatch = {
+        ...config,
+        batchId,
+        batchIndex: i,
+        batchTotal: count,
+      }
+
       // 创建占位符shape（遮罩会跟随这个shape移动）
       ;(editor as any).createShape({
         id: placeholderShapeId,
-        type: 'ai-image',
+        type: 'ai-image' as any,
         x: shapeX,
         y: shapeY,
         props: {
@@ -927,7 +971,7 @@ function TldrawAppContent() {
           url: '',  // 空url表示正在生成
           prompt: config.prompt,
           isVideo: config.mode === 'video',
-          generationConfig: JSON.stringify(config),
+          generationConfig: JSON.stringify(configWithBatch),
         },
       })
 
@@ -1477,9 +1521,9 @@ function TldrawAppContent() {
                 || selectedLayer.name
                 || `${selectedLayer.type === 'video' ? 'Video' : 'Image'} ${selectedLayer.id.slice(-4)}`
               }
-              {layers.length > 1 && (
+              {selectedLayer.generationConfig?.batchTotal && selectedLayer.generationConfig.batchTotal > 1 && (
                 <span style={{ opacity: 0.7 }}>
-                  {` (${layers.findIndex(l => l.id === selectedLayer.id) + 1}/${layers.length})`}
+                  {` (${(selectedLayer.generationConfig.batchIndex || 0) + 1}/${selectedLayer.generationConfig.batchTotal})`}
                 </span>
               )}
             </span>

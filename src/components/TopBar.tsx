@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Colors, Typography, BorderRadius, Spacing } from '../styles/constants';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -65,8 +65,8 @@ const TopBar: React.FC<TopBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
-  // 菜单项配置
-  const menuItems = [
+  // 菜单项配置 - 使用 useMemo 避免每次渲染重新创建
+  const menuItems = useMemo(() => [
     { label: '主页', shortcut: '', action: onGoHome, dividerAfter: false },
     { label: '新建项目', shortcut: '', action: onNewProject, dividerAfter: false },
     { label: '删除当前项目', shortcut: '', action: onDeleteProject, dividerAfter: true },
@@ -76,33 +76,34 @@ const TopBar: React.FC<TopBarProps> = ({
     { label: '复制画布', shortcut: '⌘ D', action: onDuplicate, dividerAfter: true },
     { label: '放大', shortcut: '⌘ +', action: () => onZoomChange(Math.min(200, zoom + 10)), dividerAfter: false },
     { label: '缩小', shortcut: '⌘ −', action: () => onZoomChange(Math.max(10, zoom - 10)), dividerAfter: false },
-  ];
+  ], [onGoHome, onNewProject, onDeleteProject, onImportImage, onUndo, onRedo, onDuplicate, onZoomChange, zoom]);
 
   useEffect(() => {
     setTempName(projectName);
   }, [projectName]);
 
-  const handleNameClick = () => {
+  // 使用 useCallback 优化事件处理函数
+  const handleNameClick = useCallback(() => {
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleNameBlur = () => {
+  const handleNameBlur = useCallback(() => {
     setIsEditing(false);
     if (tempName.trim()) {
       onProjectNameChange(tempName.trim());
     } else {
       setTempName(projectName);
     }
-  };
+  }, [tempName, onProjectNameChange, projectName]);
 
-  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleNameBlur();
     } else if (e.key === 'Escape') {
       setTempName(projectName);
       setIsEditing(false);
     }
-  };
+  }, [handleNameBlur, projectName]);
   return (
     <div
       style={{

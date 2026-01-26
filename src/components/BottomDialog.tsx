@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageLayer, GenerationConfig, EditMode, Model } from '../types';
 import { Colors, Typography, BorderRadius, Spacing, Shadows } from '../styles/constants';
@@ -176,8 +176,8 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
   const { isLight: isLightTheme, theme, iconFilter } = useThemedStyles();
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-  // 辅助函数：根据主题获取文字颜色
-  const getTextColor = (opacity: number) => {
+  // 辅助函数：根据主题获取文字颜色 - 使用 useCallback 避免每次渲染重新创建
+  const getTextColor = useCallback((opacity: number) => {
     if (isLightTheme) {
       // 浅色主题使用深色文字
       if (opacity >= 0.85) return theme.textPrimary;
@@ -186,27 +186,17 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
     }
     // 深色主题使用白色文字
     return `rgba(255, 255, 255, ${opacity})`;
-  };
+  }, [isLightTheme, theme.textPrimary, theme.textSecondary, theme.textTertiary]);
 
-  // 辅助函数：根据主题获取图标 filter (用于反转白色图标为深色)
-  const getBottomDialogIconFilter = () => {
+  // 辅助函数：根据主题获取图标 filter (用于反转白色图标为深色) - 使用 useMemo
+  const bottomDialogIconFilter = useMemo(() => {
     if (isLightTheme) {
       // 浅色主题：反转颜色并降低亮度,使白色图标变为深色
       return 'invert(1) brightness(0.3)';
     }
     // 深色主题：反转为白色，85% 透明度
     return 'invert(1) brightness(1) opacity(0.85)';
-  };
-
-  // 辅助函数：获取当前模式的 Lora
-  const getCurrentLora = () => {
-    return config.mode === 'image' ? config.imageLora : config.videoLora;
-  };
-
-  // 辅助函数：获取当前模式的 Lora 权重
-  const getCurrentLoraWeight = () => {
-    return config.mode === 'image' ? config.imageLoraWeight : config.videoLoraWeight;
-  };
+  }, [isLightTheme]);
 
   // 图像模式默认配置
   const defaultImageConfig: GenerationConfig = {
@@ -2124,7 +2114,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         flexShrink: 0,
                         transform: showModeDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                         transition: 'transform 0.2s',
-                        filter: getBottomDialogIconFilter(),
+                        filter: bottomDialogIconFilter,
                       }}
                     />
                 </div>
@@ -2194,7 +2184,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                    <img src={ICONS.model} alt="Model" width={20} height={20} style={{ flexShrink: 0, filter: getBottomDialogIconFilter() }} />
+                    <img src={ICONS.model} alt="Model" width={20} height={20} style={{ flexShrink: 0, filter: bottomDialogIconFilter }} />
                     <span style={{
                       fontSize: 14,
                       fontWeight: 600,
@@ -2213,7 +2203,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         flexShrink: 0,
                         transform: showModelDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                         transition: 'transform 0.2s',
-                        filter: getBottomDialogIconFilter(),
+                        filter: bottomDialogIconFilter,
                       }}
                     />
                 </div>
@@ -2300,7 +2290,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                           flexShrink: 0,
                           transform: showCapabilityDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                           transition: 'transform 0.2s',
-                          filter: getBottomDialogIconFilter(),
+                          filter: bottomDialogIconFilter,
                         }}
                       />
                   </div>
@@ -2341,7 +2331,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                    <img src={ICONS.magic} alt="Magic" width={20} height={20} style={{ flexShrink: 0, filter: getBottomDialogIconFilter() }} />
+                    <img src={ICONS.magic} alt="Magic" width={20} height={20} style={{ flexShrink: 0, filter: bottomDialogIconFilter }} />
                     <span style={{
                       fontSize: 14,
                       fontWeight: 600,
@@ -2448,7 +2438,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                       e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    <img src={ICONS.initialImg} alt="Reference Image" width={20} height={20} style={{ flexShrink: 0, filter: getBottomDialogIconFilter() }} />
+                    <img src={ICONS.initialImg} alt="Reference Image" width={20} height={20} style={{ flexShrink: 0, filter: bottomDialogIconFilter }} />
                   </div>
                   </Tooltip>
                 );
@@ -2631,7 +2621,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                   flexShrink: 0,
                   transform: showRatioDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                   transition: 'transform 0.2s',
-                  filter: getBottomDialogIconFilter(),
+                  filter: bottomDialogIconFilter,
                 }}
               />
             </div>
@@ -3180,4 +3170,4 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
 
 BottomDialog.displayName = 'BottomDialog';
 
-export default BottomDialog;
+export default React.memo(BottomDialog);

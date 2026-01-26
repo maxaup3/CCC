@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ImageLayer } from '../types';
 import { BorderRadius } from '../styles/constants';
 import { useThemedStyles } from '../hooks/useThemedStyles';
@@ -88,10 +88,35 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
   // 图片底部位置（用于定位编辑框到图片下方）
   const imageBottom = imageBottomY !== undefined ? imageBottomY : (screenY + screenHeight);
 
-  // 判断选中的媒介类型和数量
-  const imageCount = selectedLayers.filter(l => l.type !== 'video').length;
-  const videoCount = selectedLayers.filter(l => l.type === 'video').length;
-  const totalCount = selectedLayers.length;
+  // 判断选中的媒介类型和数量 - 使用 useMemo 避免每次渲染重新计算
+  const { imageCount, videoCount, totalCount } = useMemo(() => ({
+    imageCount: selectedLayers.filter(l => l.type !== 'video').length,
+    videoCount: selectedLayers.filter(l => l.type === 'video').length,
+    totalCount: selectedLayers.length,
+  }), [selectedLayers]);
+
+  // 根据选中情况决定显示哪些按钮
+  // 处理 Edit 按钮点击 - 使用 useCallback 避免每次渲染重新创建
+  const handleEditClick = useCallback(() => {
+    setShowQuickEdit(true);
+    setEditButtonSelected(true);
+    setQuickEditPrompt('');
+    // 延迟聚焦，等待 DOM 渲染
+    setTimeout(() => {
+      quickEditInputRef.current?.focus();
+      quickEditInputRef.current?.select();
+    }, 50);
+  }, []);
+
+  // 处理快速编辑提交 - 使用 useCallback
+  const handleQuickEditSubmit = useCallback(() => {
+    if (quickEditPrompt.trim() && onEdit) {
+      onEdit(quickEditPrompt.trim());
+      setShowQuickEdit(false);
+      setEditButtonSelected(false);
+      setQuickEditPrompt('');
+    }
+  }, [quickEditPrompt, onEdit]);
 
   // 定义按钮配置
   interface ButtonConfig {
@@ -104,64 +129,43 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
     group?: number; // 按钮所属组（用于判断是否显示分隔线）
   }
 
-  let buttons: ButtonConfig[] = [];
-
-  // 根据选中情况决定显示哪些按钮
-  // 处理 Edit 按钮点击
-  const handleEditClick = () => {
-    setShowQuickEdit(true);
-    setEditButtonSelected(true);
-    setQuickEditPrompt('');
-    // 延迟聚焦，等待 DOM 渲染
-    setTimeout(() => {
-      quickEditInputRef.current?.focus();
-      quickEditInputRef.current?.select();
-    }, 50);
-  };
-
-  // 处理快速编辑提交
-  const handleQuickEditSubmit = () => {
-    if (quickEditPrompt.trim() && onEdit) {
-      onEdit(quickEditPrompt.trim());
-      setShowQuickEdit(false);
-      setEditButtonSelected(false);
-      setQuickEditPrompt('');
+  // 按钮配置使用 useMemo 避免每次渲染重新创建
+  const buttons = useMemo<ButtonConfig[]>(() => {
+    if (totalCount === 1 && imageCount === 1) {
+      // 图片*1
+      return [
+        { label: '加入工作区', icon: ICONS.image, title: '加入工作区 (Cmd+左键快速填入)', onClick: onFillToDialog, group: 1 },
+        { label: 'Remix', icon: ICONS.remix, title: '回填参数到对话框', onClick: onRemix, group: 1 },
+        { label: 'Edit', icon: ICONS.edit, title: '快速编辑', onClick: handleEditClick, group: 1 },
+        { label: '', icon: ICONS.download, title: '下载', onClick: onDownload, iconOnly: true, group: 2 },
+      ];
+    } else if (totalCount === 1 && videoCount === 1) {
+      // 视频*1
+      return [
+        { label: 'Remix', icon: ICONS.remix, title: '回填参数到对话框', onClick: onRemix, group: 1 },
+        { label: '', icon: ICONS.download, title: '下载', onClick: onDownload, iconOnly: true, group: 2 },
+      ];
+    } else if (imageCount >= 2 && videoCount === 0) {
+      // 图片*2或更多
+      return [
+        { label: '填入首尾帧', icon: ICONS.keyframes, title: '填入首尾帧', onClick: onFillToKeyframes, group: 1 },
+        { label: '填入图像生成', icon: ICONS.image, title: '填入图像生成', onClick: onFillToImageGen, group: 1 },
+        { label: '合并图层', icon: ICONS.copy, title: '合并图层', onClick: onMergeLayers, group: 1 },
+        { label: '', icon: ICONS.download, title: '下载', onClick: onBatchDownload, iconOnly: true, group: 2 },
+      ];
+    } else if (videoCount > 0 && imageCount > 0) {
+      // 视频+图片混合
+      return [
+        { label: '', icon: ICONS.download, title: '下载', onClick: onBatchDownload, iconOnly: true, group: 1 },
+      ];
+    } else if (videoCount > 1) {
+      // 视频*超过1
+      return [
+        { label: '', icon: ICONS.download, title: '下载', onClick: onBatchDownload, iconOnly: true, group: 1 },
+      ];
     }
-  };
-
-  if (totalCount === 1 && imageCount === 1) {
-    // 图片*1
-    buttons = [
-      { label: '加入工作区', icon: ICONS.image, title: '加入工作区 (Cmd+左键快速填入)', onClick: onFillToDialog, group: 1 },
-      { label: 'Remix', icon: ICONS.remix, title: '回填参数到对话框', onClick: onRemix, group: 1 },
-      { label: 'Edit', icon: ICONS.edit, title: '快速编辑', onClick: handleEditClick, group: 1 },
-      { label: '', icon: ICONS.download, title: '下载', onClick: onDownload, iconOnly: true, group: 2 },
-    ];
-  } else if (totalCount === 1 && videoCount === 1) {
-    // 视频*1
-    buttons = [
-      { label: 'Remix', icon: ICONS.remix, title: '回填参数到对话框', onClick: onRemix, group: 1 },
-      { label: '', icon: ICONS.download, title: '下载', onClick: onDownload, iconOnly: true, group: 2 },
-    ];
-  } else if (imageCount >= 2 && videoCount === 0) {
-    // 图片*2或更多
-    buttons = [
-      { label: '填入首尾帧', icon: ICONS.keyframes, title: '填入首尾帧', onClick: onFillToKeyframes, group: 1 },
-      { label: '填入图像生成', icon: ICONS.image, title: '填入图像生成', onClick: onFillToImageGen, group: 1 },
-      { label: '合并图层', icon: ICONS.copy, title: '合并图层', onClick: onMergeLayers, group: 1 },
-      { label: '', icon: ICONS.download, title: '下载', onClick: onBatchDownload, iconOnly: true, group: 2 },
-    ];
-  } else if (videoCount > 0 && imageCount > 0) {
-    // 视频+图片混合
-    buttons = [
-      { label: '', icon: ICONS.download, title: '下载', onClick: onBatchDownload, iconOnly: true, group: 1 },
-    ];
-  } else if (videoCount > 1) {
-    // 视频*超过1
-    buttons = [
-      { label: '', icon: ICONS.download, title: '下载', onClick: onBatchDownload, iconOnly: true, group: 1 },
-    ];
-  }
+    return [];
+  }, [totalCount, imageCount, videoCount, onFillToDialog, onRemix, handleEditClick, onDownload, onFillToKeyframes, onFillToImageGen, onMergeLayers, onBatchDownload]);
 
   return (
     <>

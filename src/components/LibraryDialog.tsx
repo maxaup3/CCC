@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Colors, Typography, BorderRadius, Shadows } from '../styles/constants';
 import iconArrowDown from '../assets/icons/arrow_down.svg?url';
@@ -28,20 +28,41 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLDivElement>(null);
 
-  // 模拟图片数据（如果没有传入）
-  const mockImages: LibraryImage[] = images.length > 0 ? images : Array.from({ length: 12 }, (_, i) => ({
-    id: `img-${i + 1}`,
-    url: `https://picsum.photos/seed/${i + 1}/200/200`,
-  }));
+  // 模拟图片数据（如果没有传入）- 使用 useMemo 避免每次渲染重新创建
+  const mockImages = useMemo<LibraryImage[]>(() => {
+    return images.length > 0 ? images : Array.from({ length: 12 }, (_, i) => ({
+      id: `img-${i + 1}`,
+      url: `https://picsum.photos/seed/${i + 1}/200/200`,
+    }));
+  }, [images]);
 
-  // 过滤图片
-  const filteredImages = mockImages.filter((img) => {
-    if (searchQuery) {
-      // 简单的搜索过滤（实际应该搜索图片名称等）
-      return img.id.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    return true;
-  });
+  // 过滤图片 - 使用 useMemo 避免每次渲染重新计算
+  const filteredImages = useMemo(() => {
+    return mockImages.filter((img) => {
+      if (searchQuery) {
+        return img.id.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      return true;
+    });
+  }, [mockImages, searchQuery]);
+
+  // 回调函数 memoization
+  const handleImageClick = useCallback((imageId: string) => {
+    setSelectedImageId(imageId);
+  }, []);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const toggleFilterDropdown = useCallback(() => {
+    setShowFilterDropdown(prev => !prev);
+  }, []);
+
+  const handleFilterSelect = useCallback((type: 'Image' | 'Video' | 'All') => {
+    setFilterType(type);
+    setShowFilterDropdown(false);
+  }, []);
 
   // 点击外部关闭筛选下拉框
   useEffect(() => {
@@ -78,11 +99,7 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
     };
   }, [onClose]);
 
-  const handleImageClick = (imageId: string) => {
-    setSelectedImageId(imageId);
-  };
-
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (selectedImageId) {
       const selectedImage = filteredImages.find(img => img.id === selectedImageId);
       if (selectedImage) {
@@ -90,7 +107,7 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
         onClose();
       }
     }
-  };
+  }, [selectedImageId, filteredImages, onSelect, onClose]);
 
   return createPortal(
     <div
@@ -234,7 +251,7 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div
                 ref={filterButtonRef}
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                onClick={toggleFilterDropdown}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -283,10 +300,7 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
                   {(['Image', 'Video', 'All'] as const).map((type) => (
                     <div
                       key={type}
-                      onClick={() => {
-                        setFilterType(type);
-                        setShowFilterDropdown(false);
-                      }}
+                      onClick={() => handleFilterSelect(type)}
                       style={{
                         padding: '8px 12px',
                         cursor: 'pointer',
@@ -348,7 +362,7 @@ const LibraryDialog: React.FC<LibraryDialogProps> = ({
                     type="text"
                     placeholder="搜索库文件..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
                     style={{
                       flex: 1,
                       background: 'transparent',

@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useCallback } from 'react';
 import { ImageLayer } from '../types';
 import { Colors, Typography, BorderRadius, Spacing } from '../styles/constants';
 import layersIcon from '../assets/icons/layers.svg?url';
@@ -46,27 +46,27 @@ const LayerPanel: React.FC<LayerPanelProps> = ({
   const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
   const [dragOverPosition, setDragOverPosition] = useState<'top' | 'bottom' | null>(null);
 
-  const handleDoubleClick = (layer: ImageLayer) => {
+  const handleDoubleClick = useCallback((layer: ImageLayer) => {
     setEditingLayerId(layer.id);
     setEditingName(layer.name);
-  };
+  }, []);
 
-  const handleNameSubmit = (layerId: string) => {
+  const handleNameSubmit = useCallback((layerId: string) => {
     if (editingName.trim()) {
       onLayerUpdate(layerId, { name: editingName.trim() });
     }
     setEditingLayerId(null);
     setEditingName('');
-  };
+  }, [editingName, onLayerUpdate]);
 
-  const handleKeyDown = (e: React.KeyboardEvent, layerId: string) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, layerId: string) => {
     if (e.key === 'Enter') {
       handleNameSubmit(layerId);
     } else if (e.key === 'Escape') {
       setEditingLayerId(null);
       setEditingName('');
     }
-  };
+  }, [handleNameSubmit]);
 
   // 按钮样式
   const buttonStyle: React.CSSProperties = {

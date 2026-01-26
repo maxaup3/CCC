@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Model } from '../types';
 import { Colors, Typography, BorderRadius, Spacing, Shadows } from '../styles/constants';
@@ -11,6 +11,9 @@ interface LoraSelectorProps {
   onClose: () => void;
 }
 
+// 标签列表 - 移到组件外避免每次渲染重新创建
+const TAGS = ['Try Now', 'All', 'Anime', 'Portrait', 'Realistic', 'Illustration', 'Sci-Fi', 'Visual Design', 'Space Design', 'Game Design', '3D'] as const;
+
 const LoraSelector: React.FC<LoraSelectorProps> = ({
   models,
   selectedLora,
@@ -22,32 +25,45 @@ const LoraSelector: React.FC<LoraSelectorProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 标签列表
-  const tags = ['Try Now', 'All', 'Anime', 'Portrait', 'Realistic', 'Illustration', 'Sci-Fi', 'Visual Design', 'Space Design', 'Game Design', '3D'];
+  // 过滤模型 - 使用 useMemo 避免每次渲染重新计算
+  const filteredModels = useMemo(() => {
+    return models.filter((model) => {
+      // Tab过滤
+      if (activeTab === 'my' && !model.isUser) return false;
+      if (activeTab === 'starred' && !model.isFavorite) return false;
 
-  // 过滤模型
-  const filteredModels = models.filter((model) => {
-    // Tab过滤
-    if (activeTab === 'my' && !model.isUser) return false;
-    if (activeTab === 'starred' && !model.isFavorite) return false;
+      // 标签过滤
+      if (selectedTag !== 'All' && selectedTag !== 'Try Now') {
+        if (!model.tags || !model.tags.includes(selectedTag)) return false;
+      }
 
-    // 标签过滤
-    if (selectedTag !== 'All' && selectedTag !== 'Try Now') {
-      if (!model.tags || !model.tags.includes(selectedTag)) return false;
-    }
+      // 搜索过滤
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          model.name.toLowerCase().includes(query) ||
+          model.description?.toLowerCase().includes(query) ||
+          model.tags?.some(tag => tag.toLowerCase().includes(query))
+        );
+      }
 
-    // 搜索过滤
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        model.name.toLowerCase().includes(query) ||
-        model.description?.toLowerCase().includes(query) ||
-        model.tags?.some(tag => tag.toLowerCase().includes(query))
-      );
-    }
+      return true;
+    });
+  }, [models, activeTab, selectedTag, searchQuery]);
 
-    return true;
-  });
+  // 回调函数 memoization
+  const handleSelectAndClose = useCallback((modelId: string) => {
+    onSelect(modelId);
+    onClose();
+  }, [onSelect, onClose]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+  }, []);
 
   // 点击外部关闭
   useEffect(() => {
@@ -216,7 +232,7 @@ const LoraSelector: React.FC<LoraSelectorProps> = ({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 placeholder="搜索 LoRA..."
                 style={{
                   flex: 1,
@@ -231,7 +247,7 @@ const LoraSelector: React.FC<LoraSelectorProps> = ({
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={handleClearSearch}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -286,7 +302,7 @@ const LoraSelector: React.FC<LoraSelectorProps> = ({
             position: 'relative',
           }}
         >
-          {tags.map((tag) => {
+          {TAGS.map((tag) => {
             const isSelected = selectedTag === tag;
             return (
               <button
@@ -363,10 +379,7 @@ const LoraSelector: React.FC<LoraSelectorProps> = ({
               return (
                 <div
                   key={model.id}
-                  onClick={() => {
-                    onSelect(model.id);
-                    onClose();
-                  }}
+                  onClick={() => handleSelectAndClose(model.id)}
                   style={{
                     width: 242,
                     height: 328,

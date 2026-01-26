@@ -29,13 +29,190 @@ import LandingPage from './components/LandingPage'
 import AllProjectsPage from './components/AllProjectsPage'
 import LoadingScreen from './components/LoadingScreen'
 import { ImageLayer, GenerationTask, GenerationConfig, EditMode } from './types'
-import { ThemeProvider, useTheme, getThemeStyles, isLightTheme } from './contexts/ThemeContext'
+import { ThemeProvider, useTheme, getThemeStyles, isLightTheme, ThemeStyle } from './contexts/ThemeContext'
 import {
   getViewportCenter,
   getImageSizeFromAspectRatio,
   calculateGridLayout,
   getGridPosition,
 } from './utils/canvasUtils'
+
+// 主题列表配置
+const THEME_LIST: { id: ThemeStyle; name: string; color: string }[] = [
+  { id: 'original', name: '默认', color: '#38BDFF' },
+  { id: 'professional', name: '专业', color: '#1A1A1C' },
+  { id: 'cyberpunk', name: '赛博朋克', color: '#8B00FF' },
+  { id: 'minimal', name: '极简', color: '#121212' },
+  { id: 'runway', name: 'Runway', color: '#0EA5E9' },
+  { id: 'anthropic', name: 'Anthropic', color: '#D97757' },
+  { id: 'terminal', name: '终端', color: '#00FF41' },
+  { id: 'neumorphism', name: '新拟态', color: '#D4A574' },
+  { id: 'garden', name: '花园', color: '#66BB6A' },
+  { id: 'spectrum', name: '光谱', color: '#8B00FF' },
+  { id: 'genz', name: 'Gen-Z', color: '#2563EB' },
+  { id: 'minimalism', name: '极简主义', color: '#1C1917' },
+  { id: 'flat', name: '扁平', color: '#3B82F6' },
+  { id: 'glassmorphism', name: '玻璃态', color: '#667EEA' },
+  { id: 'aurora', name: '极光', color: '#39FF14' },
+]
+
+// 主题切换器组件
+function ThemeSwitcher() {
+  const { themeStyle, setThemeStyle } = useTheme()
+  const theme = getThemeStyles(themeStyle)
+  const lightTheme = isLightTheme(themeStyle)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const currentTheme = THEME_LIST.find(t => t.id === themeStyle) || THEME_LIST[0]
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 20,
+        right: 20,
+        zIndex: 1000,
+      }}
+    >
+      {/* 主题选择面板 */}
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 50,
+            right: 0,
+            width: 200,
+            maxHeight: 320,
+            overflowY: 'auto',
+            background: theme.panelBackground || (lightTheme ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 30, 30, 0.95)'),
+            backdropFilter: theme.panelBackdrop || 'blur(20px)',
+            border: theme.panelBorder || `1px solid ${lightTheme ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'}`,
+            borderRadius: theme.panelBorderRadius || '12px',
+            boxShadow: theme.panelShadow || '0 8px 32px rgba(0, 0, 0, 0.3)',
+            padding: '8px 0',
+          }}
+        >
+          {THEME_LIST.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setThemeStyle(item.id)
+                setIsOpen(false)
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                padding: '10px 14px',
+                background: themeStyle === item.id
+                  ? (lightTheme ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)')
+                  : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                textAlign: 'left',
+              }}
+              onMouseEnter={(e) => {
+                if (themeStyle !== item.id) {
+                  e.currentTarget.style.background = lightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (themeStyle !== item.id) {
+                  e.currentTarget.style.background = 'transparent'
+                }
+              }}
+            >
+              {/* 主题颜色预览 */}
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: item.color,
+                  border: `2px solid ${lightTheme ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)'}`,
+                  flexShrink: 0,
+                }}
+              />
+              {/* 主题名称 */}
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: themeStyle === item.id ? 600 : 400,
+                  color: theme.textPrimary || (lightTheme ? '#131314' : 'rgba(255,255,255,0.9)'),
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                }}
+              >
+                {item.name}
+              </span>
+              {/* 选中标记 */}
+              {themeStyle === item.id && (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  style={{ marginLeft: 'auto' }}
+                >
+                  <path
+                    d="M13.5 4.5L6 12L2.5 8.5"
+                    stroke={theme.textAccent || '#38BDFF'}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 切换按钮 */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          background: theme.buttonBackground || (lightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)'),
+          backdropFilter: 'blur(10px)',
+          border: `1px solid ${lightTheme ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)'}`,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.05)'
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)'
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
+        }}
+        title="切换主题"
+      >
+        {/* 调色板图标 */}
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C12.55 22 13 21.55 13 21V20C13 19.45 13.45 19 14 19H15C17.21 19 19 17.21 19 15V14C19 13.45 19.45 13 20 13H21C21.55 13 22 12.55 22 12C22 6.48 17.52 2 12 2Z"
+            stroke={currentTheme.color}
+            strokeWidth="2"
+            fill="none"
+          />
+          <circle cx="7.5" cy="11.5" r="1.5" fill={currentTheme.color} />
+          <circle cx="10.5" cy="7.5" r="1.5" fill={currentTheme.color} />
+          <circle cx="14.5" cy="7.5" r="1.5" fill={currentTheme.color} />
+          <circle cx="16.5" cy="11.5" r="1.5" fill={currentTheme.color} />
+        </svg>
+      </button>
+    </div>
+  )
+}
 
 // 自定义形状
 const customShapeUtils = [AIImageShapeUtil]
@@ -1974,6 +2151,9 @@ function TldrawAppContent() {
             />
           )
         })}
+
+      {/* 主题切换器 */}
+      <ThemeSwitcher />
 
       {/* 右键菜单 */}
       {contextMenu && (

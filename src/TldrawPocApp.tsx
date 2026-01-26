@@ -139,6 +139,11 @@ const components: TLComponents = {
   ZoomMenu: null,
   Minimap: null,
   Grid: CustomGrid,
+  // 隐藏 tldraw 水印 (InFrontOfTheCanvas)
+  InFrontOfTheCanvas: null,
+  // 隐藏顶部区域
+  TopPanel: null,
+  SharePanel: null,
 }
 
 // tldraw shape 转换为 ImageLayer（兼容现有组件）

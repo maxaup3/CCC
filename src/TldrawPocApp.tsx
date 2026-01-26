@@ -139,11 +139,9 @@ const components: TLComponents = {
   ZoomMenu: null,
   Minimap: null,
   Grid: CustomGrid,
-  // 隐藏 tldraw 水印 (InFrontOfTheCanvas)
-  InFrontOfTheCanvas: null,
-  // 隐藏顶部区域
-  TopPanel: null,
-  SharePanel: null,
+  // 注意: InFrontOfTheCanvas 包含 "Made with tldraw" 水印
+  // 保留水印可以免费用于生产环境 (tldraw v4 许可证要求)
+  // 如果要移除水印，需要购买商业许可证 ($6,000/年)
 }
 
 // tldraw shape 转换为 ImageLayer（兼容现有组件）

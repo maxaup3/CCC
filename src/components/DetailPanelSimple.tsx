@@ -277,8 +277,8 @@ const DetailPanelSimple: React.FC<DetailPanelSimpleProps> = ({ layer, onClose, o
   );
 };
 
-// 信息行组件
-const InfoRow: React.FC<{ label: string; value: string; isLight: boolean }> = ({
+// 信息行组件 - 使用 React.memo 避免不必要的重渲染
+const InfoRow: React.FC<{ label: string; value: string; isLight: boolean }> = React.memo(({
   label,
   value,
   isLight,
@@ -309,6 +309,6 @@ const InfoRow: React.FC<{ label: string; value: string; isLight: boolean }> = ({
       {value}
     </span>
   </div>
-);
+));
 
 export default React.memo(DetailPanelSimple);

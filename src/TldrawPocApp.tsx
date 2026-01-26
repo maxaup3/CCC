@@ -2,7 +2,7 @@
  * tldraw 整合版本 - 完整功能
  * 使用 tldraw 无限画布 + 所有原有 UI 组件和功能
  */
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import {
   Tldraw,
   Editor,
@@ -23,12 +23,14 @@ import GeneratingOverlay from './components/GeneratingOverlay'
 import ImageToolbar from './components/ImageToolbar'
 import DetailPanelSimple from './components/DetailPanelSimple'
 import ContextMenu, { ContextMenuEntry } from './components/ContextMenu'
-import LibraryDialog from './components/LibraryDialog'
-import LandingPage from './components/LandingPage'
-import AllProjectsPage from './components/AllProjectsPage'
 import LoadingScreen from './components/LoadingScreen'
 import { ImageLayer, GenerationTask, GenerationConfig, EditMode } from './types'
 import { ThemeProvider, useTheme, getThemeStyles, isLightTheme } from './contexts/ThemeContext'
+
+// 懒加载不常用的大型组件
+const LibraryDialog = lazy(() => import('./components/LibraryDialog'))
+const LandingPage = lazy(() => import('./components/LandingPage'))
+const AllProjectsPage = lazy(() => import('./components/AllProjectsPage'))
 import {
   getViewportCenter,
   getImageSizeFromAspectRatio,
@@ -1613,11 +1615,13 @@ function TldrawAppContent() {
             }
           }
         `}</style>
-        <LandingPage
-          onCreateProject={handleCreateProject}
-          onOpenProject={handleOpenProject}
-          onStartGeneration={handleStartGeneration}
-        />
+        <Suspense fallback={<LoadingScreen />}>
+          <LandingPage
+            onCreateProject={handleCreateProject}
+            onOpenProject={handleOpenProject}
+            onStartGeneration={handleStartGeneration}
+          />
+        </Suspense>
       </>
     )
   }
@@ -2049,10 +2053,12 @@ function TldrawAppContent() {
 
       {/* 资料库对话框 */}
       {showLibraryDialog && (
-        <LibraryDialog
-          onClose={() => setShowLibraryDialog(false)}
-          onSelect={handleLibrarySelect}
-        />
+        <Suspense fallback={null}>
+          <LibraryDialog
+            onClose={() => setShowLibraryDialog(false)}
+            onSelect={handleLibrarySelect}
+          />
+        </Suspense>
       )}
 
       {/* Toast */}
@@ -2069,30 +2075,32 @@ function TldrawAppContent() {
 
       {/* 全部项目页面 */}
       {showAllProjectsPage && (
-        <AllProjectsPage
-          projects={[
-            { id: '1', name: '未命名', thumbnailUrl: 'https://picsum.photos/400/300?random=1', updatedAt: '2026-01-17' },
-            { id: '2', name: '未命名', thumbnailUrl: 'https://picsum.photos/400/300?random=2', updatedAt: '2026-01-17' },
-            { id: '3', name: 'Untitled', thumbnailUrl: 'https://picsum.photos/400/300?random=3', updatedAt: '2026-01-16' },
-            { id: '4', name: '未命名', thumbnailUrl: 'https://picsum.photos/400/300?random=4', updatedAt: '2026-01-15' },
-          ]}
-          onClose={() => setShowAllProjectsPage(false)}
-          onOpenProject={(_projectId) => {
-            setShowAllProjectsPage(false)
-          }}
-          onCreateProject={() => {
-            setLayers([])
-            setSelectedLayerIds([])
-            setProjectName('Untitled')
-            setShowAllProjectsPage(false)
-            if (editor) {
-              editor.selectNone()
-              const shapes = editor.getCurrentPageShapes()
-              editor.deleteShapes(shapes.map(s => s.id))
-            }
-          }}
-          onShowDeleteSuccess={() => addToast('项目删除成功', 'success')}
-        />
+        <Suspense fallback={<LoadingScreen />}>
+          <AllProjectsPage
+            projects={[
+              { id: '1', name: '未命名', thumbnailUrl: 'https://picsum.photos/400/300?random=1', updatedAt: '2026-01-17' },
+              { id: '2', name: '未命名', thumbnailUrl: 'https://picsum.photos/400/300?random=2', updatedAt: '2026-01-17' },
+              { id: '3', name: 'Untitled', thumbnailUrl: 'https://picsum.photos/400/300?random=3', updatedAt: '2026-01-16' },
+              { id: '4', name: '未命名', thumbnailUrl: 'https://picsum.photos/400/300?random=4', updatedAt: '2026-01-15' },
+            ]}
+            onClose={() => setShowAllProjectsPage(false)}
+            onOpenProject={(_projectId) => {
+              setShowAllProjectsPage(false)
+            }}
+            onCreateProject={() => {
+              setLayers([])
+              setSelectedLayerIds([])
+              setProjectName('Untitled')
+              setShowAllProjectsPage(false)
+              if (editor) {
+                editor.selectNone()
+                const shapes = editor.getCurrentPageShapes()
+                editor.deleteShapes(shapes.map(s => s.id))
+              }
+            }}
+            onShowDeleteSuccess={() => addToast('项目删除成功', 'success')}
+          />
+        </Suspense>
       )}
 
       {/* 新手引导 - 仅在画布为空且未完成引导时显示 */}

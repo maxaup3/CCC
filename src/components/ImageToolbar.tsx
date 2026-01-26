@@ -674,4 +674,4 @@ const ImageToolbar: React.FC<ImageToolbarProps> = ({
   );
 };
 
-export default ImageToolbar;
+export default React.memo(ImageToolbar);

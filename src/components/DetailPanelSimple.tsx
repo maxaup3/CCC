@@ -311,4 +311,4 @@ const InfoRow: React.FC<{ label: string; value: string; isLight: boolean }> = ({
   </div>
 );
 
-export default DetailPanelSimple;
+export default React.memo(DetailPanelSimple);

@@ -412,5 +412,5 @@ const TopBar: React.FC<TopBarProps> = ({
   );
 };
 
-export default TopBar;
+export default React.memo(TopBar);
 

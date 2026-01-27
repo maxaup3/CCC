@@ -212,7 +212,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               ...prev,
               videoCapability: 'image-to-video',
               videoStartFrame: imageUrls[0],
-              aspectRatio: 'keep',
+              aspectRatio: 'Keep',
             };
           }
           // 首尾帧模式：需要填入两张图片
@@ -235,7 +235,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
               return {
                 ...prev,
                 videoStartFrame: imageUrls[0],
-                aspectRatio: 'keep',
+                aspectRatio: 'Keep',
               };
             }
           }
@@ -253,7 +253,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
             return {
               ...prev,
               videoStartFrame: imageUrls[0],
-              aspectRatio: 'keep',
+              aspectRatio: 'Keep',
             };
           }
         }
@@ -310,7 +310,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
           videoCapability: 'first-last-frame',
           videoStartFrame: startFrame,
           videoEndFrame: endFrame,
-          aspectRatio: 'keep',
+          aspectRatio: 'Keep',
         }));
       } else {
         // 只有一张图：使用图生视频模式
@@ -319,7 +319,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
           videoCapability: 'image-to-video',
           videoStartFrame: startFrame,
           videoEndFrame: undefined,
-          aspectRatio: 'keep',
+          aspectRatio: 'Keep',
         }));
       }
     },
@@ -1130,7 +1130,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                           ...prev,
                                           videoEndFrame: url,
                                           videoCapability: 'first-last-frame',
-                                          ...(!prev.videoStartFrame && !prev.videoEndFrame ? { aspectRatio: 'keep' } : {}),
+                                          ...(!prev.videoStartFrame && !prev.videoEndFrame ? { aspectRatio: 'Keep' } : {}),
                                         }));
                                       };
                                       reader.readAsDataURL(file);
@@ -1179,7 +1179,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                 setConfig(prev => ({
                                   ...prev,
                                   videoStartFrame: url,
-                                  ...(!prev.videoStartFrame ? { aspectRatio: 'keep' } : {}),
+                                  ...(!prev.videoStartFrame ? { aspectRatio: 'Keep' } : {}),
                                 }));
                               };
                               reader.readAsDataURL(file);
@@ -1329,7 +1329,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                     setConfig(prev => ({
                                       ...prev,
                                       videoEndFrame: url,
-                                      ...(!prev.videoStartFrame && !prev.videoEndFrame ? { aspectRatio: 'keep' } : {}),
+                                      ...(!prev.videoStartFrame && !prev.videoEndFrame ? { aspectRatio: 'Keep' } : {}),
                                     }));
                                   };
                                   reader.readAsDataURL(file);
@@ -2318,7 +2318,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                               referenceImages: [...existingImages, imageUrl],
                             };
                             if (existingImages.length === 0) {
-                              newConfig.aspectRatio = 'keep';
+                              newConfig.aspectRatio = 'Keep';
                             }
                             setConfig(newConfig);
                           };
@@ -2556,11 +2556,11 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         letterSpacing: '0.02em',
                       }}>Aspect Ratio</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-                        {['keep', '16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
+                        {['Keep', '16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
                           const hasReferenceImage = config.mode === 'video'
                             ? !!(config.videoStartFrame || config.videoEndFrame)
                             : (config.referenceImages?.length ?? 0) > 0;
-                          const isDisabled = ratio === 'keep' && !hasReferenceImage;
+                          const isDisabled = ratio === 'Keep' && !hasReferenceImage;
                           const isSelected = ratio === config.aspectRatio;
                           const getRatioIcon = (r: string) => {
                             const color = isDisabled
@@ -2568,7 +2568,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                               : isSelected
                                 ? (isLightTheme ? theme.textPrimary : '#fff')
                                 : (isLightTheme ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)');
-                            if (r === 'keep') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="10" rx="1.5" stroke={color} strokeWidth="1.2" strokeDasharray="2 1.5"/></svg>;
+                            if (r === 'Keep') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="10" rx="1.5" stroke={color} strokeWidth="1.2" strokeDasharray="2 1.5"/></svg>;
                             if (r === '16:9') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="8" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '9:16') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="5" y="2" width="8" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '1:1') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
@@ -2576,7 +2576,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                             if (r === '3:4') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="2" width="10" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             return null;
                           };
-                          const displayLabel = ratio === 'keep' ? 'Keep ratio' : ratio;
+                          const displayLabel = ratio === 'Keep' ? 'Keep ratio' : ratio;
                           return (
                             <button
                               key={ratio}
@@ -2752,11 +2752,11 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         letterSpacing: '0.02em',
                       }}>Aspect Ratio</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-                        {['keep', '16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
+                        {['Keep', '16:9', '9:16', '1:1', '4:3', '3:4'].map((ratio) => {
                           const hasReferenceImage = config.mode === 'video'
                             ? !!(config.videoStartFrame || config.videoEndFrame)
                             : (config.referenceImages?.length ?? 0) > 0;
-                          const isDisabled = ratio === 'keep' && !hasReferenceImage;
+                          const isDisabled = ratio === 'Keep' && !hasReferenceImage;
                           const isSelected = ratio === config.aspectRatio;
                           const getRatioIcon = (r: string) => {
                             const color = isDisabled
@@ -2764,7 +2764,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                               : isSelected
                                 ? (isLightTheme ? theme.textPrimary : '#fff')
                                 : (isLightTheme ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)');
-                            if (r === 'keep') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="10" rx="1.5" stroke={color} strokeWidth="1.2" strokeDasharray="2 1.5"/></svg>;
+                            if (r === 'Keep') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="3" y="4" width="12" height="10" rx="1.5" stroke={color} strokeWidth="1.2" strokeDasharray="2 1.5"/></svg>;
                             if (r === '16:9') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="2" y="5" width="14" height="8" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '9:16') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="5" y="2" width="8" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             if (r === '1:1') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
@@ -2772,7 +2772,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                             if (r === '3:4') return <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="4" y="2" width="10" height="14" rx="1.5" stroke={color} strokeWidth="1.2"/></svg>;
                             return null;
                           };
-                          const displayLabel = ratio === 'keep' ? 'Keep ratio' : ratio;
+                          const displayLabel = ratio === 'Keep' ? 'Keep ratio' : ratio;
                           return (
                             <button
                               key={ratio}

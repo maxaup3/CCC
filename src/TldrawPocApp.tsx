@@ -651,7 +651,6 @@ function TldrawAppContent() {
 
   // 编辑器加载
   const handleMount = useCallback((ed: Editor) => {
-    console.log('tldraw editor mounted')
     ed.setCurrentTool('select')
     setEditor(ed)
 
@@ -660,7 +659,6 @@ function TldrawAppContent() {
 
     // 检查是否有从首页带来的待处理生成任务
     if (pendingGenerationConfigRef.current) {
-      console.log('🎯 Found pending generation config, executing now...')
       const config = pendingGenerationConfigRef.current
       pendingGenerationConfigRef.current = null
       setPendingGenerationConfig(null)
@@ -795,7 +793,6 @@ function TldrawAppContent() {
 
         setGenerationTasks(prev => [...prev, ...newTasks])
         setIsBottomDialogExpanded(true)
-        console.log(`📦 Created generation task for ${count} images from pending config`)
       }, 200)
     }
 
@@ -964,8 +961,6 @@ function TldrawAppContent() {
     if (!editor) return
     if (fromIndex === toIndex) return
 
-    console.log('🔄 handleLayerReorder called:', { fromIndex, toIndex, layersCount: layers.length })
-
     // layers 数组是从上到下排列的（index 0 是最上层，Z轴最高）
     // 使用 getSortedChildIdsForParent 获取真正按 Z 轴排序的 shapes
     const currentPageId = editor.getCurrentPageId()
@@ -984,11 +979,8 @@ function TldrawAppContent() {
     const fromTldrawIndex = aiShapeIds.length - 1 - fromIndex
     const toTldrawIndex = aiShapeIds.length - 1 - toIndex
 
-    console.log('🔄 Tldraw indices:', { fromTldrawIndex, toTldrawIndex, totalShapes: aiShapeIds.length })
-
     const shapeIdToMove = aiShapeIds[fromTldrawIndex]
     if (!shapeIdToMove) {
-      console.log('❌ Shape to move not found')
       return
     }
 
@@ -999,7 +991,6 @@ function TldrawAppContent() {
       // 向上移动（Z轴变高）
       // 使用 bringForward 逐步向上移动
       const steps = fromIndex - toIndex
-      console.log('⬆️ Moving up', steps, 'steps')
       for (let i = 0; i < steps; i++) {
         editor.bringForward([shapeIdToMove as TLShapeId])
       }
@@ -1007,20 +998,16 @@ function TldrawAppContent() {
       // 向下移动（Z轴变低）
       // 使用 sendBackward 逐步向下移动
       const steps = toIndex - fromIndex
-      console.log('⬇️ Moving down', steps, 'steps')
       for (let i = 0; i < steps; i++) {
         editor.sendBackward([shapeIdToMove as TLShapeId])
       }
     }
 
-    console.log('✅ Reorder complete')
   }, [editor, layers])
 
   // 生成图片
   const handleGenerate = useCallback((config: GenerationConfig) => {
-    console.log('🎬 handleGenerate called, editor exists:', !!editor)
     if (!editor) {
-      console.log('❌ Editor not ready, cannot generate!')
       return
     }
 
@@ -1164,7 +1151,6 @@ function TldrawAppContent() {
     }, 150)
 
     setGenerationTasks(prev => [...prev, ...newTasks])
-    console.log(`📦 Created generation task for ${count} images`)
   }, [editor, addToast, hasCompletedOnboarding, setHasCompletedOnboarding])
 
   // 删除确认
@@ -1412,13 +1398,11 @@ function TldrawAppContent() {
 
   // Loading 完成回调 - 开始渐出
   const handleLoadingFadeStart = useCallback(() => {
-    console.log('🌅 Loading fade out starting...')
     setIsLoadingFadingOut(true)
   }, [])
 
   // Loading 完全消失后的回调
   const handleLoadingComplete = useCallback(() => {
-    console.log('✅ Loading complete, pendingConfig:', pendingGenerationConfigRef.current)
     setShowLoading(false)
     setIsLoadingFadingOut(false)
     // 生成任务会在 handleMount 中处理（当 editor 准备好时）
@@ -1427,7 +1411,6 @@ function TldrawAppContent() {
 
   // 处理从首页开始生成
   const handleStartGeneration = useCallback((config: GenerationConfig) => {
-    console.log('🎯 handleStartGeneration called with config:', config)
     setPendingGenerationConfig(config)
     pendingGenerationConfigRef.current = config  // 同时保存到ref
     setHasCompletedOnboarding(true)  // 从首页带任务进入时，跳过新手引导
@@ -1437,7 +1420,6 @@ function TldrawAppContent() {
     const gridTransitionDuration = 700
 
     setTimeout(() => {
-      console.log('🔄 Transitioning to loading screen')
       // 网格动画结束后，隐藏首页内容，显示 loading
       setShowLandingPage(false)
       setIsTransitioning(false)

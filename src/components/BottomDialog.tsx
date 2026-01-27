@@ -48,6 +48,33 @@ export interface BottomDialogRef {
 // 静态数据 - 提取到模块级避免每次渲染重新创建
 const RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'];
 
+const DEFAULT_IMAGE_CONFIG: GenerationConfig = {
+  mode: 'image',
+  model: 'qwen-image-edit',
+  aspectRatio: '16:9',
+  count: 1,
+  prompt: '',
+  enhancePrompt: true,
+  audioVideoSync: false,
+  loraWeight: 0.8,
+};
+
+const DEFAULT_VIDEO_CONFIG: GenerationConfig = {
+  mode: 'video',
+  model: 'wan2.2',
+  aspectRatio: '16:9',
+  count: 1,
+  prompt: '',
+  enhancePrompt: true,
+  audioVideoSync: false,
+  loraWeight: 0.8,
+  videoCapability: 'image-to-video',
+  videoDuration: 3,
+  videoQuality: 'fast',
+  videoSound: true,
+  videoResolution: '720p',
+};
+
 const MODEL_MAX_IMAGES: Record<string, number> = {
   'qwen-image-edit': 3,
   'z-image': 1,
@@ -154,38 +181,9 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
     return 'invert(1) brightness(1) opacity(0.85)';
   }, [isLightTheme]);
 
-  // 图像模式默认配置
-  const defaultImageConfig: GenerationConfig = {
-    mode: 'image',
-    model: 'qwen-image-edit',
-    aspectRatio: '16:9',
-    count: 1,
-    prompt: '',
-    enhancePrompt: true,
-    audioVideoSync: false,
-    loraWeight: 0.8,
-  };
-
-  // 视频模式默认配置
-  const defaultVideoConfig: GenerationConfig = {
-    mode: 'video',
-    model: 'wan2.2',
-    aspectRatio: '16:9',
-    count: 1,
-    prompt: '',
-    enhancePrompt: true,
-    audioVideoSync: false,
-    loraWeight: 0.8,
-    videoCapability: 'image-to-video',
-    videoDuration: 3,
-    videoQuality: 'fast',
-    videoSound: true,
-    videoResolution: '720p',
-  };
-
   // 分开存储图像和视频模式的配置
-  const [imageConfig, setImageConfig] = useState<GenerationConfig>(defaultImageConfig);
-  const [videoConfig, setVideoConfig] = useState<GenerationConfig>(defaultVideoConfig);
+  const [imageConfig, setImageConfig] = useState<GenerationConfig>(DEFAULT_IMAGE_CONFIG);
+  const [videoConfig, setVideoConfig] = useState<GenerationConfig>(DEFAULT_VIDEO_CONFIG);
   const [currentMode, setCurrentMode] = useState<'image' | 'video'>('image');
 
   // 当前使用的配置（基于当前模式）
@@ -369,9 +367,9 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
       const targetMode = fullConfig.mode || 'image';
       setCurrentMode(targetMode);
       if (targetMode === 'image') {
-        setImageConfig({ ...defaultImageConfig, ...fullConfig });
+        setImageConfig({ ...DEFAULT_IMAGE_CONFIG, ...fullConfig });
       } else {
-        setVideoConfig({ ...defaultVideoConfig, ...fullConfig });
+        setVideoConfig({ ...DEFAULT_VIDEO_CONFIG, ...fullConfig });
       }
     },
     setKeyframes: (startFrame: string, endFrame?: string) => {

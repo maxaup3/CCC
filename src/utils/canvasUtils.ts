@@ -2,7 +2,7 @@
  * 画布工具函数
  * 提取重复的逻辑，减少代码重复
  */
-import { Editor, createShapeId, TLShapeId } from 'tldraw'
+import { Editor } from 'tldraw'
 
 /**
  * 获取视口中心的页面坐标
@@ -85,61 +85,3 @@ export function getGridPosition(
   }
 }
 
-/**
- * 创建 AI 图片 Shape 的参数
- */
-export interface CreateAIImageShapeParams {
-  editor: Editor
-  position: { x: number; y: number }
-  size: { width: number; height: number }
-  url: string
-  prompt: string
-  model?: string
-  isVideo?: boolean
-  generationConfig?: string
-}
-
-/**
- * 创建 AI 图片 Shape
- */
-export function createAIImageShape(params: CreateAIImageShapeParams): TLShapeId {
-  const {
-    editor,
-    position,
-    size,
-    url,
-    prompt,
-    model = '',
-    isVideo = false,
-    generationConfig = '',
-  } = params
-
-  const shapeId = createShapeId()
-  ;(editor as any).createShape({
-    id: shapeId,
-    type: 'ai-image',
-    x: position.x - size.width / 2,
-    y: position.y - size.height / 2,
-    props: {
-      w: size.width,
-      h: size.height,
-      url,
-      prompt,
-      model,
-      generatedAt: Date.now(),
-      isVideo,
-      generationConfig,
-    },
-  })
-
-  return shapeId
-}
-
-/**
- * 图标滤镜（用于主题适配）
- */
-export function getIconFilter(isLightTheme: boolean): string {
-  return isLightTheme
-    ? 'brightness(0) saturate(100%) invert(25%) sepia(10%) saturate(500%) hue-rotate(180deg)'
-    : 'brightness(0) saturate(100%) invert(100%)'
-}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { Colors, Typography, BorderRadius, Spacing } from '../styles/constants';
 import { useThemedStyles } from '../hooks/useThemedStyles';
-import sLogo from '../assets/icons/s_logo.svg?url';
+import sLogo from '../assets/icons/claude_logo.svg?url';
 
 interface TopBarProps {
   zoom: number;

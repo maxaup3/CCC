@@ -13,6 +13,7 @@ import {
 } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { AIImageShapeUtil, videoElementsMap, isAIImageShape, createAIImageShapeProps } from './components/tldraw-poc/AIImageShape'
+import { AgentCardShapeUtil } from './components/tldraw-poc/AgentCardShape'
 import VideoControls from './components/tldraw-poc/VideoControls'
 import TopBar from './components/TopBar'
 import BottomDialog, { BottomDialogRef } from './components/BottomDialog'
@@ -24,7 +25,10 @@ import ImageToolbar from './components/ImageToolbar'
 import DetailPanelSimple from './components/DetailPanelSimple'
 import ContextMenu, { ContextMenuEntry } from './components/ContextMenu'
 import LoadingScreen from './components/LoadingScreen'
+import AgentInputBar from './components/AgentInputBar'
 import { ImageLayer, GenerationTask, GenerationConfig, EditMode } from './types'
+import { AgentSession, AgentAction, AgentTurn } from './types/agent'
+import { generateMockAgentTurn } from './mock/agentMockData'
 import { ThemeProvider, useTheme, getThemeStyles, isLightTheme } from './contexts/ThemeContext'
 import { usePageNavigation } from './hooks/usePageNavigation'
 import { useUIState } from './hooks/useUIState'
@@ -41,7 +45,7 @@ import {
 } from './utils/canvasUtils'
 
 // 自定义形状
-const customShapeUtils = [AIImageShapeUtil]
+const customShapeUtils = [AIImageShapeUtil, AgentCardShapeUtil]
 
 // 自定义网格组件 - 使用主题配色
 function CustomGrid({ x, y, z }: { x: number; y: number; z: number; size: number }) {
@@ -276,7 +280,6 @@ function TldrawAppContent() {
   } = usePageNavigation()
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [pendingGenerationConfig, setPendingGenerationConfig] = useState<GenerationConfig | null>(null)
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
   const [editor, setEditor] = useState<Editor | null>(null)
   const [layers, setLayers] = useState<ImageLayer[]>([])
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([])
@@ -298,6 +301,15 @@ function TldrawAppContent() {
   const [clipboardLayers, setClipboardLayers] = useState<ImageLayer[]>([])
   const [isLayerTransforming, setIsLayerTransforming] = useState(false)
   const [isCameraPanning, setIsCameraPanning] = useState(false)
+
+  // Agent 状态
+  const [agentSession, setAgentSession] = useState<AgentSession>({
+    id: 'session-1',
+    turns: [],
+    status: 'idle',
+    currentActionIndex: -1,
+  })
+  const agentTimersRef = useRef<NodeJS.Timeout[]>([])
   const cameraPanTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastCameraRef = useRef({ x: 0, y: 0, z: 1 })
   const bottomDialogRef = useRef<BottomDialogRef>(null)
@@ -991,11 +1003,6 @@ function TldrawAppContent() {
       return
     }
 
-    // 首次生成时完成新手引导
-    if (!hasCompletedOnboarding) {
-      setHasCompletedOnboarding(true)
-    }
-
     const centerPage = getViewportCenter(editor)
     const imageSize = getImageSizeFromAspectRatio(config.aspectRatio || '1:1', 320)
     const count = config.count || 1
@@ -1125,7 +1132,7 @@ function TldrawAppContent() {
     }, 150)
 
     setGenerationTasks(prev => [...prev, ...newTasks])
-  }, [editor, addToast, hasCompletedOnboarding, setHasCompletedOnboarding])
+  }, [editor, addToast])
 
   // 删除确认
   const confirmDelete = useCallback(() => {
@@ -1156,6 +1163,120 @@ function TldrawAppContent() {
     })
     addToast(`已下载 ${selectedLayers.length} 个图层`, 'success')
   }, [layers, selectedLayerIds, addToast])
+
+  // ============ Agent 操作画布 ============
+
+  // Agent 发送消息（触发 Agent 执行流程）
+  const handleAgentMessage = useCallback((userMessage: string) => {
+    if (!editor) return
+    if (agentSession.status !== 'idle') return
+
+    // 计算画布上的节点数
+    const currentPageId = editor.getCurrentPageId()
+    const allShapes = editor.getSortedChildIdsForParent(currentPageId)
+    const nodeCount = allShapes.length
+
+    // 添加用户 turn
+    const userTurn: AgentTurn = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: userMessage,
+      actions: [],
+      timestamp: Date.now(),
+    }
+
+    // 生成 mock agent turn
+    const agentTurn = generateMockAgentTurn(userMessage, nodeCount)
+
+    setAgentSession(prev => ({
+      ...prev,
+      turns: [...prev.turns, userTurn],
+      status: 'thinking',
+      currentActionIndex: 0,
+    }))
+
+    // 清理旧 timers
+    agentTimersRef.current.forEach(t => clearTimeout(t))
+    agentTimersRef.current = []
+
+    // 计算视口中心，用于排列卡片
+    const centerPage = getViewportCenter(editor)
+    // 如果画布上有内容，将 Agent 卡片放在右侧
+    const baseX = nodeCount > 0 ? centerPage.x + 400 : centerPage.x
+    const baseY = centerPage.y - 200
+
+    // 逐步执行 agent actions（模拟流式）
+    const actions = agentTurn.actions
+    let cardIndex = 0
+
+    actions.forEach((action, idx) => {
+      const delay = (idx + 1) * 1200 // 每个 action 间隔 1.2s
+
+      const timer = setTimeout(() => {
+        // 更新 session 状态
+        setAgentSession(prev => ({
+          ...prev,
+          status: idx === actions.length - 1 ? 'done' : 'executing',
+          currentActionIndex: idx,
+        }))
+
+        // 在画布上创建卡片
+        const cardW = action.type === 'add_node' ? 360 : action.type === 'comment' ? 340 : 300
+        const cardH = action.type === 'add_node' ? 220 : action.type === 'thinking' ? 120 : action.type === 'tool_call' ? 150 : 140
+        const cardX = baseX - cardW / 2
+        const cardY = baseY + cardIndex * (cardH + 16)
+
+        const shapeId = createShapeId()
+        editor.createShape({
+          id: shapeId,
+          type: 'agent-card' as any,
+          x: cardX,
+          y: cardY,
+          props: {
+            w: cardW,
+            h: cardH,
+            cardType: action.type,
+            title: action.type === 'add_node' ? (action as any).title || '' : '',
+            content: action.content,
+            toolName: action.toolCall?.name || '',
+            toolResult: action.toolCall?.result || '',
+            isStreaming: idx < actions.length - 1,
+            agentTurnId: agentTurn.id,
+            timestamp: action.timestamp,
+          },
+        })
+
+        cardIndex++
+
+        // 平滑滚动到最新卡片
+        if (idx === 0) {
+          // 第一张卡片：移动相机以展示
+          const bounds = editor.getShapePageBounds(shapeId as any)
+          if (bounds) {
+            editor.zoomToBounds(
+              { x: bounds.x - 100, y: bounds.y - 80, w: bounds.width + 200, h: (cardH + 16) * actions.length + 160 },
+              { animation: { duration: 500 } }
+            )
+          }
+        }
+
+        // 最后一个 action 完成后，重置状态
+        if (idx === actions.length - 1) {
+          const doneTimer = setTimeout(() => {
+            setAgentSession(prev => ({
+              ...prev,
+              turns: [...prev.turns, agentTurn],
+              status: 'idle',
+              currentActionIndex: -1,
+            }))
+          }, 600)
+          agentTimersRef.current.push(doneTimer)
+        }
+      }, delay)
+
+      agentTimersRef.current.push(timer)
+    })
+  }, [editor, agentSession.status])
 
   // Remix 操作 - 回填完整生成参数
   const handleRemix = useCallback(() => {
@@ -1372,7 +1493,6 @@ function TldrawAppContent() {
   const handleStartGeneration = useCallback((config: GenerationConfig) => {
     setPendingGenerationConfig(config)
     pendingGenerationConfigRef.current = config  // 同时保存到ref
-    setHasCompletedOnboarding(true)  // 从首页带任务进入时，跳过新手引导
     setIsTransitioning(true)
 
     // 网格脉冲过渡时长：700ms
@@ -1760,8 +1880,8 @@ function TldrawAppContent() {
         onLayerReorder={handleLayerReorder}
       />
 
-      {/* BottomDialog */}
-      <BottomDialog
+      {/* BottomDialog - 暂时隐藏，MVP 阶段只用 Agent 输入栏 */}
+      {/* <BottomDialog
         ref={bottomDialogRef}
         isExpanded={isBottomDialogExpanded}
         onToggle={() => setIsBottomDialogExpanded(!isBottomDialogExpanded)}
@@ -1772,6 +1892,12 @@ function TldrawAppContent() {
         onGenerate={handleGenerate}
         onLayerSelect={handleLayerSelect}
         isLandingPage={false}
+      /> */}
+
+      {/* Agent 输入栏 */}
+      <AgentInputBar
+        onSend={handleAgentMessage}
+        isThinking={agentSession.status !== 'idle'}
       />
 
       {/* 选中图层的名称标签和详情图标 - 图层静止时显示，生成中不显示，画布移动时隐藏 */}
@@ -2038,183 +2164,7 @@ function TldrawAppContent() {
         </Suspense>
       )}
 
-      {/* 新手引导 - 仅在画布为空且未完成引导时显示 */}
-      {!hasCompletedOnboarding && layers.length === 0 && generationTasks.filter(task => task.status === 'generating').length === 0 && (() => {
-        return (
-          <>
-            <style>
-              {`
-                @keyframes onboarding-float {
-                  0%, 100% { transform: translateY(0); }
-                  50% { transform: translateY(-8px); }
-                }
-                @keyframes onboarding-arrow-bounce {
-                  0%, 100% { transform: translateY(0); opacity: 0.6; }
-                  50% { transform: translateY(8px); opacity: 1; }
-                }
-                @keyframes onboarding-pulse {
-                  0%, 100% { opacity: 0.4; }
-                  50% { opacity: 0.8; }
-                }
-              `}
-            </style>
-            <div
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 100,
-                pointerEvents: 'none',
-                paddingBottom: 200, // 为底部对话框留空间
-              }}
-            >
-              {/* 主内容区 */}
-              <div
-                style={{
-                  textAlign: 'center',
-                  animation: 'onboarding-float 4s ease-in-out infinite',
-                }}
-              >
-                {/* 图标 */}
-                <div
-                  style={{
-                    width: 64,
-                    height: 64,
-                    margin: '0 auto 24px',
-                    borderRadius: 16,
-                    background: lightTheme
-                      ? 'linear-gradient(135deg, rgba(56, 189, 255, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%)'
-                      : 'linear-gradient(135deg, rgba(56, 189, 255, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-                      stroke={lightTheme ? '#38BDFF' : '#38BDFF'}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </svg>
-                </div>
-
-                {/* 标题 */}
-                <h1
-                  style={{
-                    fontSize: 40,
-                    fontWeight: 600,
-                    fontFamily: '"SF Pro Display", -apple-system, sans-serif',
-                    marginBottom: 16,
-                    background: 'linear-gradient(135deg, #38BDFF 0%, #7C3AED 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  无限画布
-                </h1>
-
-                {/* 副标题 */}
-                <p
-                  style={{
-                    fontSize: 18,
-                    color: lightTheme ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)',
-                    fontFamily: '"SF Pro Display", -apple-system, sans-serif',
-                    marginBottom: 32,
-                    maxWidth: 420,
-                    lineHeight: 1.7,
-                    fontWeight: 500,
-                  }}
-                >
-                  用文字描述你想要的画面，AI 帮你生成图片或视频
-                </p>
-
-                {/* 功能说明 */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                    marginBottom: 48,
-                    maxWidth: 380,
-                  }}
-                >
-                  {[
-                    { icon: '✨', text: '输入想法，一键生成' },
-                    { icon: '🎨', text: '自由移动、缩放、编辑' },
-                    { icon: '🎬', text: '支持图片和视频创作' },
-                  ].map((item, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        fontSize: 15,
-                        color: lightTheme ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.7)',
-                        fontFamily: '"SF Pro Display", -apple-system, sans-serif',
-                      }}
-                    >
-                      <span style={{ fontSize: 20 }}>{item.icon}</span>
-                      <span>{item.text}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 向下箭头指引 */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 14,
-                      color: lightTheme ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)',
-                      fontFamily: '"SF Pro Display", -apple-system, sans-serif',
-                      animation: 'onboarding-pulse 2s ease-in-out infinite',
-                      fontWeight: 500,
-                    }}
-                  >
-                    👇 从这里开始
-                  </span>
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    style={{
-                      animation: 'onboarding-arrow-bounce 1.5s ease-in-out infinite',
-                    }}
-                  >
-                    <path
-                      d="M12 5V19M12 19L5 12M12 19L19 12"
-                      stroke={lightTheme ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)'}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </>
-        )
-      })()}
+      {/* 新手引导已移除 */}
 
       {/* 暗色/亮色模式覆盖样式 */}
       <style>{`
@@ -2260,6 +2210,10 @@ function TldrawAppContent() {
         }
         .ai-image-info:hover {
           opacity: 1 !important;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.4; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
         }
       `}</style>
       </div>

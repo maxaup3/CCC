@@ -1370,7 +1370,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
 
                     return (
                     <div
-                      key={index}
+                      key={`ref-${index}-${imageUrl.slice(-16)}`}
                       style={{
                         position: 'relative',
                         width: imgWidth,

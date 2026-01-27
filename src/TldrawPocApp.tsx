@@ -2,7 +2,7 @@
  * tldraw 整合版本 - 完整功能
  * 使用 tldraw 无限画布 + 所有原有 UI 组件和功能
  */
-import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react'
 import {
   Tldraw,
   Editor,
@@ -298,9 +298,12 @@ function TldrawAppContent() {
   const transformTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingGenerationConfigRef = useRef<GenerationConfig | null>(null)
 
-  const selectedLayer = selectedLayerIds.length === 1
-    ? layers.find(l => l.id === selectedLayerIds[0]) || null
-    : null
+  const selectedLayer = useMemo(() =>
+    selectedLayerIds.length === 1
+      ? layers.find(l => l.id === selectedLayerIds[0]) || null
+      : null,
+    [selectedLayerIds, layers]
+  )
 
   // 选中图层的屏幕坐标
   const [selectedLayerScreenPos, setSelectedLayerScreenPos] = useState<{ x: number; y: number; width: number; height: number } | null>(null)

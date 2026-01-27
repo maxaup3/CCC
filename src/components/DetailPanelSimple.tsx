@@ -57,7 +57,7 @@ const DetailPanelSimple: React.FC<DetailPanelSimpleProps> = ({ layer, onClose, o
     }
   };
 
-  const bgColor = colors.background.secondary;
+  const bgColor = colors.background.onPrimary;
   const textPrimary = colors.text.primary;
   const textSecondary = colors.text.tertiary;
   const borderColor = colors.stroke.primary;

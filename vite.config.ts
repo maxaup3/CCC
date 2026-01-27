@@ -12,6 +12,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-tldraw': ['tldraw'],
+          'vendor-motion': ['framer-motion'],
+        },
+      },
+    },
+  },
   server: {
     port: 5174,
     host: true,

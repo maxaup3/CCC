@@ -38,5 +38,5 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => 
   );
 };
 
-export default ToastContainer;
+export default React.memo(ToastContainer);
 

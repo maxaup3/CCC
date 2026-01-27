@@ -548,4 +548,4 @@ const VideoControls: React.FC<VideoControlsProps> = ({ video, width, position, v
   );
 };
 
-export default VideoControls;
+export default React.memo(VideoControls);

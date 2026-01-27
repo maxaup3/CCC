@@ -18,15 +18,11 @@
     "compare-canvas": "npx ts-node --esm scripts/compare-canvas.ts"
   },
   "dependencies": {
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
     "framer-motion": "^12.26.2",
     "konva": "^9.2.3",
-    "lucide-react": "^0.562.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
-    "tailwind-merge": "^3.4.0",
     "tldraw": "^2.4.0"
   },
   "devDependencies": {

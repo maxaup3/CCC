@@ -45,6 +45,80 @@ export interface BottomDialogRef {
   getMaxImagesForModel: () => number; // 获取当前图像模型支持的最大参考图数
 }
 
+// 静态数据 - 提取到模块级避免每次渲染重新创建
+const RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'];
+
+const MODEL_MAX_IMAGES: Record<string, number> = {
+  'qwen-image-edit': 3,
+  'z-image': 1,
+  'illustrious': 1,
+};
+
+const modelData: Model[] = [
+  // 图像模型
+  {
+    id: 'qwen-image-edit',
+    name: 'Qwen-Image-Edit',
+    mode: 'image',
+    description: '精准指令编辑、文字渲染',
+    tags: ['Image', 'Edit'],
+    isUser: false,
+    isFavorite: false,
+    estimatedTime: '30s',
+  },
+  {
+    id: 'z-image',
+    name: 'Z-image',
+    mode: 'image',
+    description: '写实摄影、人像',
+    tags: ['Image'],
+    isUser: false,
+    isFavorite: false,
+    estimatedTime: '20s',
+  },
+  {
+    id: 'illustrious',
+    name: 'Illustrious',
+    mode: 'image',
+    description: '二次元/动漫插画',
+    tags: ['Image', 'Anime'],
+    isUser: false,
+    isFavorite: false,
+    estimatedTime: '25s',
+  },
+  // 视频模型
+  {
+    id: 'wan2.2',
+    name: 'Wan2.2',
+    mode: 'video',
+    description: '电影级质感、动作自然',
+    tags: ['Video'],
+    isUser: false,
+    isFavorite: false,
+    estimatedTime: '2 min',
+  },
+  {
+    id: 'wan2.6',
+    name: 'Wan2.6',
+    mode: 'video',
+    description: '音画同步',
+    tags: ['Video'],
+    isUser: false,
+    isFavorite: false,
+    estimatedTime: '2 min',
+  },
+  {
+    id: 'ltx-2',
+    name: 'LTX 2',
+    mode: 'video',
+    description: '音画同步、原生 4K',
+    tags: ['Video', '4K'],
+    isUser: false,
+    isFavorite: false,
+    estimatedTime: '3 min',
+  },
+];
+
 const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
   isExpanded,
   onToggle,
@@ -352,83 +426,10 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
   const ratioButtonRef = useRef<HTMLDivElement>(null);
   const loraHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const ratios = ['16:9', '9:16', '1:1', '4:3', '3:4'];
-
-  // 模型支持的最大参考图片数量配置
-  const modelMaxImages: Record<string, number> = {
-    'qwen-image-edit': 3,  // Qwen Edit 支持 0-3 张
-    'z-image': 1,          // Z-image 支持 0-1 张
-    'illustrious': 1,      // Illustrious 支持 0-1 张
-  };
+  const ratios = RATIOS;
 
   // 获取当前模型支持的最大图片数量
-  const getMaxImages = (modelId: string) => modelMaxImages[modelId] ?? 1;
-
-  // 模型数据
-  const modelData: Model[] = [
-    // 图像模型
-    {
-      id: 'qwen-image-edit',
-      name: 'Qwen-Image-Edit',
-      mode: 'image',
-      description: '精准指令编辑、文字渲染',
-      tags: ['Image', 'Edit'],
-      isUser: false,
-      isFavorite: false,
-      estimatedTime: '30s',
-    },
-    {
-      id: 'z-image',
-      name: 'Z-image',
-      mode: 'image',
-      description: '写实摄影、人像',
-      tags: ['Image'],
-      isUser: false,
-      isFavorite: false,
-      estimatedTime: '20s',
-    },
-    {
-      id: 'illustrious',
-      name: 'Illustrious',
-      mode: 'image',
-      description: '二次元/动漫插画',
-      tags: ['Image', 'Anime'],
-      isUser: false,
-      isFavorite: false,
-      estimatedTime: '25s',
-    },
-    // 视频模型
-    {
-      id: 'wan2.2',
-      name: 'Wan2.2',
-      mode: 'video',
-      description: '电影级质感、动作自然',
-      tags: ['Video'],
-      isUser: false,
-      isFavorite: false,
-      estimatedTime: '2 min',
-    },
-    {
-      id: 'wan2.6',
-      name: 'Wan2.6',
-      mode: 'video',
-      description: '音画同步',
-      tags: ['Video'],
-      isUser: false,
-      isFavorite: false,
-      estimatedTime: '2 min',
-    },
-    {
-      id: 'ltx-2',
-      name: 'LTX 2',
-      mode: 'video',
-      description: '音画同步、原生 4K',
-      tags: ['Video', '4K'],
-      isUser: false,
-      isFavorite: false,
-      estimatedTime: '3 min',
-    },
-  ];
+  const getMaxImages = (modelId: string) => MODEL_MAX_IMAGES[modelId] ?? 1;
   
   // 计算各个dropdown位置
   const [modeDropdownPosition, setModeDropdownPosition] = useState<{ top: number; left: number } | null>(null);

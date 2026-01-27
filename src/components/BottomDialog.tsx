@@ -1070,10 +1070,10 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                 }}
                                 style={{
                                   position: 'absolute',
-                                  top: 0,
-                                  right: 0,
-                                  width: 12,
-                                  height: 12,
+                                  top: -4,
+                                  right: -4,
+                                  width: 14,
+                                  height: 14,
                                   background: Colors.text.primary,
                                   border: 'none',
                                   borderRadius: '50%',
@@ -1083,8 +1083,6 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                   justifyContent: 'center',
                                   padding: 0,
                                   zIndex: 1001,
-                                  transform: 'translate(25%, -25%)',
-                                  pointerEvents: 'auto',
                                 }}
                               >
                                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -1270,10 +1268,10 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                     }}
                                     style={{
                                       position: 'absolute',
-                                      top: 0,
-                                      right: 0,
-                                      width: 12,
-                                      height: 12,
+                                      top: -4,
+                                      right: -4,
+                                      width: 14,
+                                      height: 14,
                                       background: Colors.text.primary,
                                       border: 'none',
                                       borderRadius: '50%',
@@ -1283,8 +1281,6 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                                       justifyContent: 'center',
                                       padding: 0,
                                       zIndex: 1001,
-                                      transform: 'translate(25%, -25%)',
-                                      pointerEvents: 'auto',
                                     }}
                                   >
                                     <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -1681,10 +1677,10 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                       }}
                       style={{
                         position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        width: 12,
-                        height: 12,
+                        top: -4,
+                        right: -4,
+                        width: 14,
+                        height: 14,
                         background: Colors.text.primary,
                         border: 'none',
                         borderRadius: '50%',
@@ -1693,9 +1689,7 @@ const BottomDialog = forwardRef<BottomDialogRef, BottomDialogProps>(({
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: 0,
-                        zIndex: 10002,
-                        transform: 'translate(25%, -25%)',
-                        pointerEvents: 'auto',
+                        zIndex: 1001,
                       }}
                     >
                       <svg width="8" height="8" viewBox="0 0 8 8" fill="none">

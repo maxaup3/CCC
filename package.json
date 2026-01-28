@@ -18,7 +18,6 @@
     "compare-canvas": "npx ts-node --esm scripts/compare-canvas.ts"
   },
   "dependencies": {
-    "framer-motion": "^12.26.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tldraw": "^2.4.0"

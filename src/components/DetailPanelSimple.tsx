@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { ImageLayer } from '../types';
 import { Colors, Typography, BorderRadius, Spacing } from '../styles/constants';
 import iconCopy from '../assets/icons/copy.svg?url';
@@ -48,14 +48,16 @@ const DetailPanelSimple: React.FC<DetailPanelSimpleProps> = ({ layer, onClose, o
     }
   };
 
-  // 复制提示词
-  const handleCopyPrompt = () => {
+  // 复制提示词（使用 ref 管理 timer 防止泄漏）
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleCopyPrompt = useCallback(() => {
     if (layer.generationConfig?.prompt) {
       navigator.clipboard.writeText(layer.generationConfig.prompt);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
     }
-  };
+  }, [layer.generationConfig?.prompt]);
 
   const bgColor = colors.background.onPrimary;
   const textPrimary = colors.text.primary;

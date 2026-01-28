@@ -27,8 +27,9 @@ import ContextMenu, { ContextMenuEntry } from './components/ContextMenu'
 import LoadingScreen from './components/LoadingScreen'
 import AgentInputBar from './components/AgentInputBar'
 import { ImageLayer, GenerationTask, GenerationConfig, EditMode } from './types'
-import { AgentSession, AgentAction, AgentTurn } from './types/agent'
-import { generateMockAgentTurn } from './mock/agentMockData'
+import { AgentSession } from './types/agent'
+import { generateMockAgentSteps } from './mock/agentMockData'
+import type { AgentStep } from './components/tldraw-poc/AgentCardShape'
 import { ThemeProvider, useTheme, getThemeStyles, isLightTheme } from './contexts/ThemeContext'
 import { usePageNavigation } from './hooks/usePageNavigation'
 import { useUIState } from './hooks/useUIState'
@@ -1167,6 +1168,7 @@ function TldrawAppContent() {
   // ============ Agent 操作画布 ============
 
   // Agent 发送消息（触发 Agent 执行流程）
+  // 新设计：一轮对话 = 一张卡片，逐步更新 steps 和 currentStep
   const handleAgentMessage = useCallback((userMessage: string) => {
     if (!editor) return
     if (agentSession.status !== 'idle') return
@@ -1176,21 +1178,12 @@ function TldrawAppContent() {
     const allShapes = editor.getSortedChildIdsForParent(currentPageId)
     const nodeCount = allShapes.length
 
-    // 添加用户 turn
-    const userTurn: AgentTurn = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: userMessage,
-      actions: [],
-      timestamp: Date.now(),
-    }
-
-    // 生成 mock agent turn
-    const agentTurn = generateMockAgentTurn(userMessage, nodeCount)
+    // 生成 mock 步骤序列
+    const { steps, summary } = generateMockAgentSteps(userMessage, nodeCount)
+    const turnId = `turn-${Date.now()}`
 
     setAgentSession(prev => ({
       ...prev,
-      turns: [...prev.turns, userTurn],
       status: 'thinking',
       currentActionIndex: 0,
     }))
@@ -1199,73 +1192,77 @@ function TldrawAppContent() {
     agentTimersRef.current.forEach(t => clearTimeout(t))
     agentTimersRef.current = []
 
-    // 计算视口中心，用于排列卡片
+    // 计算卡片放置位置
     const centerPage = getViewportCenter(editor)
-    // 如果画布上有内容，将 Agent 卡片放在右侧
-    const baseX = nodeCount > 0 ? centerPage.x + 400 : centerPage.x
-    const baseY = centerPage.y - 200
+    const cardW = 380
+    const cardH = 320
+    const cardX = (nodeCount > 0 ? centerPage.x + 400 : centerPage.x) - cardW / 2
+    const cardY = centerPage.y - cardH / 2
 
-    // 逐步执行 agent actions（模拟流式）
-    const actions = agentTurn.actions
-    let cardIndex = 0
+    // 创建一张卡片（初始只有用户消息，steps 为空）
+    const shapeId = createShapeId()
+    editor.createShape({
+      id: shapeId,
+      type: 'agent-card' as any,
+      x: cardX,
+      y: cardY,
+      props: {
+        w: cardW,
+        h: cardH,
+        userMessage,
+        summary: '',
+        steps: '[]',
+        status: 'thinking',
+        currentStep: 0,
+        agentTurnId: turnId,
+        timestamp: Date.now(),
+      },
+    })
 
-    actions.forEach((action, idx) => {
-      const delay = (idx + 1) * 1200 // 每个 action 间隔 1.2s
+    // 移动相机展示卡片
+    const bounds = editor.getShapePageBounds(shapeId as any)
+    if (bounds) {
+      editor.zoomToBounds(
+        { x: bounds.x - 60, y: bounds.y - 60, w: bounds.width + 120, h: bounds.height + 120 },
+        { animation: { duration: 500 } }
+      )
+    }
+
+    // 逐步推入 steps（模拟流式执行）
+    const accumulatedSteps: AgentStep[] = []
+
+    steps.forEach((step, idx) => {
+      const delay = (idx + 1) * 1000 // 每步间隔 1s
 
       const timer = setTimeout(() => {
+        accumulatedSteps.push(step)
+
+        const isLast = idx === steps.length - 1
+
+        // 更新卡片的 steps 和状态
+        editor.updateShape({
+          id: shapeId,
+          type: 'agent-card' as any,
+          props: {
+            steps: JSON.stringify(accumulatedSteps),
+            currentStep: idx,
+            status: isLast ? 'done' : 'executing',
+            summary: isLast ? summary : '',
+          },
+        } as any)
+
         // 更新 session 状态
         setAgentSession(prev => ({
           ...prev,
-          status: idx === actions.length - 1 ? 'done' : 'executing',
+          status: isLast ? 'executing' : 'executing',
           currentActionIndex: idx,
         }))
 
-        // 在画布上创建卡片
-        const cardW = action.type === 'add_node' ? 360 : action.type === 'comment' ? 340 : 300
-        const cardH = action.type === 'add_node' ? 220 : action.type === 'thinking' ? 120 : action.type === 'tool_call' ? 150 : 140
-        const cardX = baseX - cardW / 2
-        const cardY = baseY + cardIndex * (cardH + 16)
-
-        const shapeId = createShapeId()
-        editor.createShape({
-          id: shapeId,
-          type: 'agent-card' as any,
-          x: cardX,
-          y: cardY,
-          props: {
-            w: cardW,
-            h: cardH,
-            cardType: action.type,
-            title: action.type === 'add_node' ? (action as any).title || '' : '',
-            content: action.content,
-            toolName: action.toolCall?.name || '',
-            toolResult: action.toolCall?.result || '',
-            isStreaming: idx < actions.length - 1,
-            agentTurnId: agentTurn.id,
-            timestamp: action.timestamp,
-          },
-        })
-
-        cardIndex++
-
-        // 平滑滚动到最新卡片
-        if (idx === 0) {
-          // 第一张卡片：移动相机以展示
-          const bounds = editor.getShapePageBounds(shapeId as any)
-          if (bounds) {
-            editor.zoomToBounds(
-              { x: bounds.x - 100, y: bounds.y - 80, w: bounds.width + 200, h: (cardH + 16) * actions.length + 160 },
-              { animation: { duration: 500 } }
-            )
-          }
-        }
-
-        // 最后一个 action 完成后，重置状态
-        if (idx === actions.length - 1) {
+        // 最后一步完成后，延迟重置 session 为 idle
+        if (isLast) {
           const doneTimer = setTimeout(() => {
             setAgentSession(prev => ({
               ...prev,
-              turns: [...prev.turns, agentTurn],
               status: 'idle',
               currentActionIndex: -1,
             }))
@@ -1429,7 +1426,7 @@ function TldrawAppContent() {
             resolve()
           }
           img.onerror = () => {
-            console.error('Failed to load image:', layer.url)
+            if (import.meta.env.DEV) console.error('Failed to load image:', layer.url)
             resolve() // 继续处理其他图片
           }
           img.src = layer.url
@@ -1462,7 +1459,7 @@ function TldrawAppContent() {
 
       addToast(`已合并 ${sortedSelectedLayers.length} 个图层`, 'success')
     } catch (error) {
-      console.error('Merge layers error:', error)
+      if (import.meta.env.DEV) console.error('Merge layers error:', error)
       addToast('合并图层失败', 'error')
     }
   }, [editor, layers, selectedLayerIds, addToast])

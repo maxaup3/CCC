@@ -8,16 +8,32 @@ interface ToastProps {
   type: ToastType;
   duration?: number;
   onClose: () => void;
+  onRetry?: () => void;
+  showRetryButton?: boolean;
+  retryCount?: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type, duration = 3000, onClose }) => {
+const Toast: React.FC<ToastProps> = ({
+  message,
+  type,
+  duration = 3000,
+  onClose,
+  onRetry,
+  showRetryButton = false,
+  retryCount = 0,
+}) => {
   useEffect(() => {
+    // 如果有重试按钮或正在重试，不自动关闭
+    if (showRetryButton && retryCount === 0) {
+      return
+    }
+
     const timer = setTimeout(() => {
       onClose();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration, onClose]);
+  }, [duration, onClose, showRetryButton, retryCount]);
 
   const getColors = () => {
     switch (type) {
@@ -100,16 +116,51 @@ const Toast: React.FC<ToastProps> = ({ message, type, duration = 3000, onClose }
           <path d="M10 7V10M10 13H10.01" stroke={colors.icon} strokeWidth="2" strokeLinecap="round" />
         </svg>
       )}
-      <span
-        style={{
-          fontSize: Typography.englishBody.fontSize.medium,
-          fontWeight: Typography.englishBody.fontWeight,
-          color: colors.text,
-          fontFamily: Typography.englishBody.fontFamily,
-        }}
-      >
-        {message}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+        <span
+          style={{
+            fontSize: Typography.englishBody.fontSize.medium,
+            fontWeight: Typography.englishBody.fontWeight,
+            color: colors.text,
+            fontFamily: Typography.englishBody.fontFamily,
+            flex: 1,
+          }}
+        >
+          {message}
+          {retryCount > 0 && (
+            <span style={{ opacity: 0.7, marginLeft: 8 }}>
+              (重试 {retryCount})
+            </span>
+          )}
+        </span>
+        {showRetryButton && onRetry && (
+          <button
+            onClick={() => {
+              onRetry()
+            }}
+            style={{
+              background: colors.icon,
+              border: 'none',
+              color: 'white',
+              padding: '4px 12px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = '0.8'
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = '1'
+            }}
+          >
+            重试
+          </button>
+        )}
+      </div>
     </div>
   );
 };

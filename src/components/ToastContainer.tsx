@@ -6,14 +6,17 @@ export interface ToastItem {
   message: string;
   type: ToastType;
   duration?: number;
+  onRetry?: () => void;
+  retryCount?: number;
 }
 
 interface ToastContainerProps {
   toasts: ToastItem[];
   onRemove: (id: string) => void;
+  onRetry?: (id: string) => void;
 }
 
-const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => {
+const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove, onRetry }) => {
   return (
     <>
       {toasts.map((toast, index) => (
@@ -31,6 +34,12 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => 
             type={toast.type}
             duration={toast.duration}
             onClose={() => onRemove(toast.id)}
+            onRetry={toast.onRetry ? () => {
+              onRetry?.(toast.id);
+              toast.onRetry?.();
+            } : undefined}
+            showRetryButton={!!toast.onRetry}
+            retryCount={toast.retryCount}
           />
         </div>
       ))}

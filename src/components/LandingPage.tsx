@@ -5,6 +5,7 @@ import BottomDialog from './BottomDialog';
 import AllProjectsPage from './AllProjectsPage';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import { GenerationConfig } from '../types';
+import { getAllProjectsMetadata, deleteProject } from '../utils/projectPersistence';
 
 interface LandingPageProps {
   onCreateProject: () => void;
@@ -99,33 +100,20 @@ const LandingPage: React.FC<LandingPageProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // 模拟项目数据
-  const recentProjects: Project[] = [
-    {
-      id: '1',
-      name: '未命名',
-      thumbnailUrl: 'https://picsum.photos/400/300?random=1',
-      updatedAt: '2026-01-17',
-    },
-    {
-      id: '2',
-      name: '未命名',
-      thumbnailUrl: 'https://picsum.photos/400/300?random=2',
-      updatedAt: '2026-01-17',
-    },
-    {
-      id: '3',
-      name: 'Untitled',
-      thumbnailUrl: 'https://picsum.photos/400/300?random=3',
-      updatedAt: '2026-01-16',
-    },
-    {
-      id: '4',
-      name: '未命名',
-      thumbnailUrl: 'https://picsum.photos/400/300?random=4',
-      updatedAt: '2026-01-15',
-    },
-  ];
+  // 从 localStorage 加载项目数据
+  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    // Load projects from localStorage
+    const projectsMetadata = getAllProjectsMetadata();
+    const projects: Project[] = projectsMetadata.slice(0, 10).map(meta => ({
+      id: meta.id,
+      name: meta.name,
+      thumbnailUrl: meta.thumbnailUrl || `https://picsum.photos/400/300?random=${meta.id}`,
+      updatedAt: new Date(meta.lastModified).toISOString().split('T')[0],
+    }));
+    setRecentProjects(projects);
+  }, []);
 
   // 模拟灵感数据（瀑布流）
   const inspirationItems: InspirationItem[] = Array.from({ length: 20 }, (_, i) => ({
@@ -2366,6 +2354,17 @@ const LandingPage: React.FC<LandingPageProps> = ({
         content={`确定要删除「${deleteConfirmProject?.name || ''}」吗？此操作无法撤销。`}
         onOk={() => {
           if (deleteConfirmProject) {
+            // Delete from localStorage
+            deleteProject(deleteConfirmProject.id);
+            // Refresh project list
+            const updatedMetadata = getAllProjectsMetadata();
+            const updatedProjects: Project[] = updatedMetadata.slice(0, 10).map(meta => ({
+              id: meta.id,
+              name: meta.name,
+              thumbnailUrl: meta.thumbnailUrl || `https://picsum.photos/400/300?random=${meta.id}`,
+              updatedAt: new Date(meta.lastModified).toISOString().split('T')[0],
+            }));
+            setRecentProjects(updatedProjects);
             onShowDeleteSuccess?.();
             onDeleteProject?.(deleteConfirmProject.id);
             setDeleteConfirmProject(null);

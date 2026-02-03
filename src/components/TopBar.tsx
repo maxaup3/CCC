@@ -20,6 +20,8 @@ interface TopBarProps {
   onRedo?: () => void;
   onDuplicate?: () => void;
   onShowAllImages?: () => void;
+  onOpenApiKeyDialog?: () => void;
+  hasApiKey?: boolean;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
@@ -38,6 +40,8 @@ const TopBar: React.FC<TopBarProps> = ({
   onRedo,
   onDuplicate,
   onShowAllImages,
+  onOpenApiKeyDialog,
+  hasApiKey,
 }) => {
   const { isLight: isLightTheme, theme, colors } = useThemedStyles();
 
@@ -308,6 +312,46 @@ const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* API Key 设置按钮 */}
+        <button
+          onClick={onOpenApiKeyDialog}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 36,
+            height: 36,
+            background: 'transparent',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = isLightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          title={hasApiKey ? 'API Key 已配置' : '配置 API Key'}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M11.5 1.5L16.5 6.5L15 8L10 3L11.5 1.5Z" stroke={isLightTheme ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.55)'} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 3L6.5 6.5C5.5 5.5 4 5.5 3 6.5C2 7.5 2 9 3 10C4 11 5.5 11 6.5 10L10 6.5" stroke={isLightTheme ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.55)'} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="4.5" cy="8.5" r="1" fill={isLightTheme ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.55)'} />
+          </svg>
+          {/* Green dot indicator */}
+          {hasApiKey && (
+            <div style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#34C759',
+              border: `1.5px solid ${isLightTheme ? '#FFFFFF' : '#1A1A1A'}`,
+            }} />
+          )}
+        </button>
+
         {/* 积分显示 */}
         <div
           style={{

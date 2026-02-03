@@ -15,12 +15,17 @@
     "test:watch": "vitest --watch",
     "test:unit": "vitest run src/components/__tests__",
     "test:integration": "vitest run src/__tests__",
-    "compare-canvas": "npx ts-node --esm scripts/compare-canvas.ts"
+    "compare-canvas": "npx ts-node --esm scripts/compare-canvas.ts",
+    "server": "node server/index.mjs"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.0.0",
+    "pptxgenjs": "^4.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tldraw": "^2.4.0"
+    "tldraw": "^2.4.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",

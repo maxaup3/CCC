@@ -10,29 +10,53 @@ import {
   useEditor,
   track,
   TLShapeId,
+  exportToBlob,
 } from 'tldraw'
+import html2canvas from 'html2canvas'
 import 'tldraw/tldraw.css'
 import { AIImageShapeUtil, videoElementsMap, isAIImageShape, createAIImageShapeProps } from './components/tldraw-poc/AIImageShape'
 import { AgentCardShapeUtil } from './components/tldraw-poc/AgentCardShape'
+import { ProductCardShapeUtil } from './components/tldraw-poc/ProductCardShape'
+import { CommentShapeUtil } from './components/tldraw-poc/CommentShape'
+import { OutlineCardShapeUtil } from './components/tldraw-poc/OutlineCardShape'
+import { PageCardShapeUtil } from './components/tldraw-poc/PageCardShape'
+import { FileCardShapeUtil } from './components/tldraw-poc/FileCardShape'
+import { DocCardShapeUtil } from './components/tldraw-poc/DocCardShape'
+import { TableCardShapeUtil } from './components/tldraw-poc/TableCardShape'
+import { AIWorkingZoneShapeUtil } from './components/tldraw-poc/AIWorkingZoneShape'
 import VideoControls from './components/tldraw-poc/VideoControls'
 import TopBar from './components/TopBar'
 import BottomDialog, { BottomDialogRef } from './components/BottomDialog'
 import LayerPanel from './components/LayerPanel'
 import ToastContainer, { ToastItem } from './components/ToastContainer'
 import DeleteConfirmModal from './components/DeleteConfirmModal'
-import GeneratingOverlay from './components/GeneratingOverlay'
 import ImageToolbar from './components/ImageToolbar'
 import DetailPanelSimple from './components/DetailPanelSimple'
 import ContextMenu, { ContextMenuEntry } from './components/ContextMenu'
 import LoadingScreen from './components/LoadingScreen'
 import AgentInputBar from './components/AgentInputBar'
-import { ImageLayer, GenerationTask, GenerationConfig, EditMode } from './types'
-import { AgentSession } from './types/agent'
-import { generateMockAgentSteps } from './mock/agentMockData'
-import type { AgentStep } from './components/tldraw-poc/AgentCardShape'
+import ScreenshotOverlay from './components/ScreenshotOverlay'
+// AIWorkingZone 已改为 tldraw 原生 shape（AIWorkingZoneShapeUtil），不再使用 overlay
+import ApiKeyDialog, { getApiKey, getNebulaApiKey } from './components/ApiKeyDialog'
+import { ImageLayer, GenerationConfig, EditMode } from './types'
 import { ThemeProvider, useTheme, getThemeStyles, isLightTheme } from './contexts/ThemeContext'
 import { usePageNavigation } from './hooks/usePageNavigation'
 import { useUIState } from './hooks/useUIState'
+import { useAgentOrchestrator } from './hooks/useAgentOrchestrator'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useCanvasPersistence } from './hooks/useCanvasPersistence'
+import { agentEvents, AGENT_EVENTS } from './utils/agentEvents'
+import {
+  getAllProjectsMetadata,
+  loadProjectSnapshot,
+  createProject,
+  deleteProject,
+  generateProjectId,
+} from './utils/projectPersistence'
+import { generateImage, base64ToBlobUrl, IMAGE_MODELS, DEFAULT_MODEL } from './services/imageGeneration'
+import { parseImageCommand, detectImageIntent, detectImageEditIntent, IntentDetectionResult } from './utils/imageCommandParser'
+import * as XLSX from 'xlsx'
+import type { GeminiImageSize } from './services/imageGeneration'
 
 // 懒加载不常用的大型组件
 const LibraryDialog = lazy(() => import('./components/LibraryDialog'))
@@ -46,7 +70,18 @@ import {
 } from './utils/canvasUtils'
 
 // 自定义形状
-const customShapeUtils = [AIImageShapeUtil, AgentCardShapeUtil]
+const customShapeUtils = [
+  AIImageShapeUtil,
+  AgentCardShapeUtil,
+  ProductCardShapeUtil,
+  CommentShapeUtil,
+  OutlineCardShapeUtil,
+  PageCardShapeUtil,
+  FileCardShapeUtil,
+  DocCardShapeUtil,
+  TableCardShapeUtil,
+  AIWorkingZoneShapeUtil,
+]
 
 // 自定义网格组件 - 使用主题配色
 function CustomGrid({ x, y, z }: { x: number; y: number; z: number; size: number }) {
@@ -194,13 +229,24 @@ const CanvasContent = track(function CanvasContent({
   onSelectionChange,
   onZoomChange,
   onCameraChange,
+  projectId,
+  projectName,
 }: {
   onLayersChange: (layers: ImageLayer[]) => void
   onSelectionChange: (ids: string[]) => void
   onZoomChange: (zoom: number) => void
   onCameraChange: (camera: { x: number; y: number; z: number }) => void
+  projectId?: string
+  projectName?: string
 }) {
   const editor = useEditor()
+
+  // 启用画布持久化
+  useCanvasPersistence(editor, {
+    projectId: projectId || 'default-project',
+    projectName: projectName || 'Untitled Project',
+    enabled: true,
+  })
 
   // 监听形状变化
   useEffect(() => {
@@ -266,6 +312,91 @@ const CanvasContent = track(function CanvasContent({
   return null
 })
 
+// 扫描读取卡片高亮 overlay
+function ScanningOverlay({ editor, shapeId }: { editor: Editor; shapeId: string }) {
+  const [screen, setScreen] = useState({ left: 0, top: 0, width: 0, height: 0 })
+
+  useEffect(() => {
+    const shape = editor.getShape(shapeId as TLShapeId)
+    if (!shape) return
+
+    const update = () => {
+      const s = shape as any
+      const w = s.props?.w || 280
+      const h = s.props?.h || 120
+      const topLeft = editor.pageToScreen({ x: s.x, y: s.y })
+      const bottomRight = editor.pageToScreen({ x: s.x + w, y: s.y + h })
+      setScreen({
+        left: topLeft.x,
+        top: topLeft.y,
+        width: bottomRight.x - topLeft.x,
+        height: bottomRight.y - topLeft.y,
+      })
+    }
+
+    update()
+    // 跟踪相机变化
+    const unsub = editor.store.listen(update, { scope: 'document' })
+    return unsub
+  }, [editor, shapeId])
+
+  if (screen.width === 0) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: screen.left - 4,
+        top: screen.top - 4,
+        width: screen.width + 8,
+        height: screen.height + 8,
+        border: '2px solid #7C3AED',
+        borderRadius: 12,
+        pointerEvents: 'none',
+        zIndex: 999,
+        overflow: 'hidden',
+        boxShadow: '0 0 20px rgba(124, 58, 237, 0.3)',
+      }}
+    >
+      {/* 扫描光效 */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: '-100%',
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.15), transparent)',
+          animation: 'scan-sweep 0.8s ease-in-out infinite',
+        }}
+      />
+      {/* 角标 */}
+      <div
+        style={{
+          position: 'absolute',
+          top: -1,
+          right: -1,
+          padding: '2px 8px',
+          background: '#7C3AED',
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 600,
+          borderRadius: '0 10px 0 8px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+        }}
+      >
+        读取中
+      </div>
+      <style>{`
+        @keyframes scan-sweep {
+          0% { left: -100%; }
+          100% { left: 200%; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // 主应用组件
 function TldrawAppContent() {
   const { themeStyle } = useTheme()
@@ -287,6 +418,15 @@ function TldrawAppContent() {
   const [zoom, setZoom] = useState(100)
   const [camera, setCamera] = useState({ x: 0, y: 0, z: 1 })
   const [projectName, setProjectName] = useState('Untitled')
+  const [projectId, setProjectId] = useState(() => {
+    // Try to load last opened project ID from localStorage
+    const lastProjectId = localStorage?.getItem?.('canvas-last-project')
+    if (lastProjectId) {
+      return lastProjectId
+    }
+    // Generate a new project ID if none found
+    return `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  })
   const {
     deleteConfirmVisible, setDeleteConfirmVisible,
     showDetailPanel, setShowDetailPanel,
@@ -297,20 +437,31 @@ function TldrawAppContent() {
     isBottomDialogExpanded, setIsBottomDialogExpanded,
   } = useUIState()
   const [editMode, setEditMode] = useState<EditMode>('normal')
-  const [generationTasks, setGenerationTasks] = useState<GenerationTask[]>([])
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [clipboardLayers, setClipboardLayers] = useState<ImageLayer[]>([])
   const [isLayerTransforming, setIsLayerTransforming] = useState(false)
   const [isCameraPanning, setIsCameraPanning] = useState(false)
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const [hasApiKey, setHasApiKey] = useState(() => !!getApiKey())
+  const [screenshotMode, setScreenshotMode] = useState(false)
+  const [pendingScreenshot, setPendingScreenshot] = useState<string | null>(null)
+  // 截图的从属信息：来源 shape + 区域
+  const [screenshotSource, setScreenshotSource] = useState<{
+    shapeId: string
+    shapeType: string
+    regionBounds: { x: number; y: number; w: number; h: number }  // 相对于 shape 的坐标
+  } | null>(null)
+  // 待确认的模糊意图
+  const [pendingAmbiguousIntent, setPendingAmbiguousIntent] = useState<{
+    message: string
+    intent: IntentDetectionResult
+    screenshot?: string
+  } | null>(null)
 
-  // Agent 状态
-  const [agentSession, setAgentSession] = useState<AgentSession>({
-    id: 'session-1',
-    turns: [],
-    status: 'idle',
-    currentActionIndex: -1,
-  })
-  const agentTimersRef = useRef<NodeJS.Timeout[]>([])
+  // 删除感知
+  const productCardSnapshotRef = useRef<Map<string, { name: string, tags: string[], x: number, y: number }>>(new Map())
+  const tldrawContainerRef = useRef<HTMLDivElement>(null)
+
   const cameraPanTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastCameraRef = useRef({ x: 0, y: 0, z: 1 })
   const bottomDialogRef = useRef<BottomDialogRef>(null)
@@ -324,6 +475,37 @@ function TldrawAppContent() {
       : null,
     [selectedLayerIds, layers]
   )
+
+  // 选中的产品卡片（用于框选 + 输入上下文）
+  const selectedProductCards = useMemo(() => {
+    if (!editor || selectedLayerIds.length === 0) return []
+    return selectedLayerIds
+      .map(id => editor.getShape(id as TLShapeId))
+      .filter(s => s && (s as any).type === 'product-card')
+      .map(s => ({ id: s!.id, ...(s as any).props }))
+  }, [editor, selectedLayerIds])
+
+  // 选中单张卡片时，提取信息用于"卡片指令模式"
+  const CARD_TYPES = useMemo(() => new Set([
+    'product-card', 'agent-card', 'page-card',
+    'doc-card', 'file-card', 'table-card',
+  ]), [])
+
+  const selectedCardForComment = useMemo(() => {
+    if (!editor || selectedLayerIds.length !== 1) return null
+    const shape = editor.getShape(selectedLayerIds[0] as TLShapeId)
+    if (!shape) return null
+    if (!CARD_TYPES.has((shape as any).type)) return null
+    return {
+      id: shape.id as string,
+      type: (shape as any).type,
+      name: (shape as any).props?.name
+        || (shape as any).props?.pageTitle
+        || (shape as any).props?.fileName
+        || (shape as any).props?.title
+        || '卡片',
+    }
+  }, [editor, selectedLayerIds, CARD_TYPES])
 
   // 选中图层的屏幕坐标
   const [selectedLayerScreenPos, setSelectedLayerScreenPos] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
@@ -467,6 +649,583 @@ function TldrawAppContent() {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
+  // Agent 编排 hook
+  const {
+    agentTasks,
+    agentMode,
+    setAgentMode,
+    activePrompt,
+    scanningShapeId,
+    handleAgentMessage,
+    handlePromptSelect,
+    handlePromptDismiss,
+    createComment,
+    setImageGenerationZoneBounds,
+  } = useAgentOrchestrator({ editor, selectedProductCards, selectedShapeIds: selectedLayerIds, addToast })
+
+  // 将选中的 shape 截图为 PNG base64 data URL（使用 html2canvas 支持自定义 shape）
+  const captureShapeScreenshot = useCallback(async (shapeId: string): Promise<string | undefined> => {
+    if (!editor) return undefined
+    try {
+      // 获取 shape 的 page bounds，转换为 screen 坐标
+      const shapeBounds = editor.getShapePageBounds(shapeId as TLShapeId)
+      if (!shapeBounds) return undefined
+
+      const padding = 12
+      const screenStart = editor.pageToScreen({ x: shapeBounds.x - padding, y: shapeBounds.y - padding })
+      const screenEnd = editor.pageToScreen({
+        x: shapeBounds.x + shapeBounds.width + padding,
+        y: shapeBounds.y + shapeBounds.height + padding,
+      })
+
+      // 优先使用 ref，否则尝试多个选择器
+      let container: HTMLElement | null = tldrawContainerRef.current
+      if (!container) {
+        container = document.querySelector('.tl-container') as HTMLElement
+      }
+      if (!container) {
+        container = document.querySelector('.tl-canvas')?.parentElement as HTMLElement
+      }
+      if (!container) {
+        container = document.querySelector('.tldraw') as HTMLElement
+      }
+      if (!container) return undefined
+
+      const containerRect = container.getBoundingClientRect()
+
+      const x = screenStart.x - containerRect.left
+      const y = screenStart.y - containerRect.top
+      const w = screenEnd.x - screenStart.x
+      const h = screenEnd.y - screenStart.y
+
+      if (w < 1 || h < 1) return undefined
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        x: x,
+        y: y,
+        width: w,
+        height: h,
+        scrollX: 0,
+        scrollY: 0,
+      })
+
+      if (canvas.width < 1 || canvas.height < 1) return undefined
+      return canvas.toDataURL('image/png')
+    } catch {
+      return undefined
+    }
+  }, [editor])
+
+  // 截取画布指定区域为 PNG base64（使用 html2canvas 支持自定义 shape）
+  const captureRegionScreenshot = useCallback(async (
+    pageBounds: { x: number; y: number; w: number; h: number }
+  ): Promise<string | undefined> => {
+    console.log('[captureRegionScreenshot] Start', pageBounds)
+    if (!editor) {
+      console.error('[captureRegionScreenshot] No editor')
+      return undefined
+    }
+    try {
+      // 将 page 坐标转换为 screen 坐标
+      const screenStart = editor.pageToScreen({ x: pageBounds.x, y: pageBounds.y })
+      const screenEnd = editor.pageToScreen({
+        x: pageBounds.x + pageBounds.w,
+        y: pageBounds.y + pageBounds.h,
+      })
+      console.log('[captureRegionScreenshot] Screen coords', { screenStart, screenEnd })
+
+      // 优先使用 ref，否则尝试多个选择器
+      let container: HTMLElement | null = tldrawContainerRef.current
+      if (container) {
+        console.log('[captureRegionScreenshot] Using ref container')
+      } else {
+        // 回退：尝试多个选择器
+        container = document.querySelector('.tl-container') as HTMLElement
+        if (!container) {
+          container = document.querySelector('.tl-canvas')?.parentElement as HTMLElement
+        }
+        if (!container) {
+          container = document.querySelector('[data-testid="canvas"]') as HTMLElement
+        }
+        if (!container) {
+          container = document.querySelector('.tldraw') as HTMLElement
+        }
+        if (!container) {
+          console.error('[captureRegionScreenshot] No tldraw container found')
+          return undefined
+        }
+        console.log('[captureRegionScreenshot] Using selector container:', container.className)
+      }
+
+      const containerRect = container.getBoundingClientRect()
+      console.log('[captureRegionScreenshot] Container rect', containerRect)
+
+      // 计算截取区域相对于容器的偏移
+      const x = Math.max(0, screenStart.x - containerRect.left)
+      const y = Math.max(0, screenStart.y - containerRect.top)
+      const w = Math.max(1, screenEnd.x - screenStart.x)
+      const h = Math.max(1, screenEnd.y - screenStart.y)
+
+      console.log('[captureRegionScreenshot] Crop region', { x, y, w, h })
+
+      if (w < 10 || h < 10) {
+        console.warn('[captureRegionScreenshot] Region too small')
+        return undefined
+      }
+
+      // 使用 html2canvas 截取整个容器
+      console.log('[captureRegionScreenshot] Calling html2canvas...')
+      const fullCanvas = await html2canvas(container, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: true, // 启用日志帮助调试
+        scrollX: 0,
+        scrollY: 0,
+        allowTaint: true,
+      })
+      console.log('[captureRegionScreenshot] html2canvas done, canvas size:', fullCanvas.width, fullCanvas.height)
+
+      // 创建新 canvas 用于裁剪
+      const croppedCanvas = document.createElement('canvas')
+      const scale = 2
+      croppedCanvas.width = w * scale
+      croppedCanvas.height = h * scale
+
+      const ctx = croppedCanvas.getContext('2d')
+      if (!ctx) {
+        console.error('[captureRegionScreenshot] Failed to get 2d context')
+        return undefined
+      }
+
+      // 从完整 canvas 中裁剪指定区域
+      try {
+        ctx.drawImage(
+          fullCanvas,
+          x * scale,
+          y * scale,
+          w * scale,
+          h * scale,
+          0,
+          0,
+          w * scale,
+          h * scale
+        )
+        console.log('[captureRegionScreenshot] Draw complete')
+      } catch (drawError) {
+        console.error('[captureRegionScreenshot] Failed to draw cropped image:', drawError)
+        return undefined
+      }
+
+      const dataUrl = croppedCanvas.toDataURL('image/png')
+      console.log('[captureRegionScreenshot] Success, dataUrl length:', dataUrl.length)
+      return dataUrl
+    } catch (error) {
+      console.error('[captureRegionScreenshot] Failed:', error)
+      return undefined
+    }
+  }, [editor])
+
+  // 截图完成回调：屏幕坐标 → page 坐标 → 使用 tldraw 原生导出
+  const handleScreenshotCapture = useCallback(async (
+    screenStart: { x: number; y: number },
+    screenEnd: { x: number; y: number }
+  ) => {
+    console.log('[Screenshot] handleScreenshotCapture called', { screenStart, screenEnd })
+
+    if (!editor) {
+      console.warn('[Screenshot] Editor not available')
+      addToast('截图失败：编辑器不可用', 'error')
+      setScreenshotMode(false)
+      return
+    }
+
+    try {
+      // 1. 计算屏幕选区（用于 html2canvas 截图）
+      const screenBounds = {
+        x: Math.min(screenStart.x, screenEnd.x),
+        y: Math.min(screenStart.y, screenEnd.y),
+        w: Math.abs(screenEnd.x - screenStart.x),
+        h: Math.abs(screenEnd.y - screenStart.y),
+      }
+
+      // 2. 屏幕坐标转 page 坐标（用于查找相交的 shapes）
+      const pageStart = editor.screenToPage(screenStart)
+      const pageEnd = editor.screenToPage(screenEnd)
+      const selectionBounds = {
+        x: Math.min(pageStart.x, pageEnd.x),
+        y: Math.min(pageStart.y, pageEnd.y),
+        w: Math.abs(pageEnd.x - pageStart.x),
+        h: Math.abs(pageEnd.y - pageStart.y),
+      }
+      console.log('[Screenshot] Selection bounds (page coords):', selectionBounds)
+
+      // 3. 找出与选区相交的 shapes
+      const allShapes = editor.getCurrentPageShapes()
+      const intersectingShapes = allShapes.filter(shape => {
+        // 排除 ai-working-zone
+        if (shape.type === 'ai-working-zone') return false
+        const shapeBounds = editor.getShapePageBounds(shape.id)
+        if (!shapeBounds) return false
+        // 检查矩形相交
+        return !(
+          shapeBounds.x + shapeBounds.width < selectionBounds.x ||
+          shapeBounds.x > selectionBounds.x + selectionBounds.w ||
+          shapeBounds.y + shapeBounds.height < selectionBounds.y ||
+          shapeBounds.y > selectionBounds.y + selectionBounds.h
+        )
+      })
+      console.log('[Screenshot] Intersecting shapes:', intersectingShapes.length)
+
+      if (intersectingShapes.length === 0) {
+        addToast('截图区域内没有内容', 'info')
+        setScreenshotMode(false)
+        return
+      }
+
+      // 4. 找主要的从属 shape（面积占比最大的那个）
+      let primaryShape = intersectingShapes[0]
+      let maxOverlapArea = 0
+      for (const shape of intersectingShapes) {
+        const shapeBounds = editor.getShapePageBounds(shape.id)
+        if (!shapeBounds) continue
+        // 计算相交面积
+        const overlapX = Math.max(0, Math.min(shapeBounds.x + shapeBounds.width, selectionBounds.x + selectionBounds.w) - Math.max(shapeBounds.x, selectionBounds.x))
+        const overlapY = Math.max(0, Math.min(shapeBounds.y + shapeBounds.height, selectionBounds.y + selectionBounds.h) - Math.max(shapeBounds.y, selectionBounds.y))
+        const overlapArea = overlapX * overlapY
+        if (overlapArea > maxOverlapArea) {
+          maxOverlapArea = overlapArea
+          primaryShape = shape
+        }
+      }
+      console.log('[Screenshot] Primary shape:', primaryShape.type, primaryShape.id)
+
+      // 5. 计算选区相对于主 shape 的坐标
+      const primaryBounds = editor.getShapePageBounds(primaryShape.id)!
+      const regionBounds = {
+        x: selectionBounds.x - primaryBounds.x,
+        y: selectionBounds.y - primaryBounds.y,
+        w: selectionBounds.w,
+        h: selectionBounds.h,
+      }
+
+      // 6. 截图：使用 html2canvas 截取屏幕上的实际像素
+      // 关键：先关闭遮罩，等待 DOM 更新，再截图
+      setScreenshotMode(false)
+
+      // 等待一帧让遮罩消失
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+      addToast('正在截图...', 'info')
+
+      let screenshot: string
+
+      try {
+        // 使用 html2canvas 截取 document.body 的指定区域
+        console.log('[Screenshot] Using html2canvas to capture screen region:', screenBounds)
+
+        const html2canvasResult = await html2canvas(document.body, {
+          x: screenBounds.x,
+          y: screenBounds.y,
+          width: screenBounds.w,
+          height: screenBounds.h,
+          scale: window.devicePixelRatio || 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null, // 透明背景，保留原有颜色
+          logging: false,
+          ignoreElements: (element) => {
+            // 忽略截图遮罩本身（如果还在的话）
+            return element.classList?.contains('screenshot-overlay') ||
+                   element.getAttribute?.('data-screenshot-ignore') === 'true'
+          },
+        })
+
+        screenshot = html2canvasResult.toDataURL('image/png')
+        console.log('[Screenshot] html2canvas successful, dataURL length:', screenshot.length)
+
+      } catch (html2canvasError) {
+        console.log('[Screenshot] html2canvas failed, trying tldraw export...', html2canvasError)
+
+        // 备选方案：使用 tldraw 的 exportToBlob
+        const shapeIds = intersectingShapes.map(s => s.id)
+        try {
+          const blob = await exportToBlob({
+            editor,
+            ids: shapeIds,
+            format: 'png',
+            opts: { background: true, padding: 0, scale: 2 },
+          })
+
+          if (blob) {
+            screenshot = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.onerror = reject
+              reader.readAsDataURL(blob)
+            })
+            console.log('[Screenshot] tldraw export API successful')
+          } else {
+            throw new Error('exportToBlob returned null')
+          }
+        } catch (exportError) {
+          console.log('[Screenshot] All methods failed, creating placeholder...', exportError)
+
+          // 最终回退：创建一个带有形状信息的占位图
+          const canvas = document.createElement('canvas')
+          const scale = 2
+          canvas.width = screenBounds.w * scale
+          canvas.height = screenBounds.h * scale
+          const ctx = canvas.getContext('2d')!
+
+          // 绘制渐变背景
+          const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+          gradient.addColorStop(0, '#f8f9fa')
+          gradient.addColorStop(1, '#e9ecef')
+          ctx.fillStyle = gradient
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+          // 绘制边框
+          ctx.strokeStyle = '#dee2e6'
+          ctx.lineWidth = 2
+          ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2)
+
+          // 绘制信息
+          ctx.fillStyle = '#495057'
+          ctx.font = `${16 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(`截图区域 (${intersectingShapes.length} 个图层)`, canvas.width / 2, canvas.height / 2 - 15 * scale)
+          ctx.font = `${12 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`
+          ctx.fillStyle = '#868e96'
+          ctx.fillText(`${Math.round(screenBounds.w)} × ${Math.round(screenBounds.h)} px`, canvas.width / 2, canvas.height / 2 + 15 * scale)
+
+          screenshot = canvas.toDataURL('image/png')
+        }
+      }
+      console.log('[Screenshot] Capture successful, size:', screenshot.length)
+
+      setPendingScreenshot(screenshot)
+      setScreenshotSource({
+        shapeId: primaryShape.id,
+        shapeType: primaryShape.type,
+        regionBounds,
+      })
+      addToast('截图完成', 'success')
+
+    } catch (error) {
+      console.error('[Screenshot] Error:', error)
+      addToast(`截图出错: ${error instanceof Error ? error.message : '未知错误'}`, 'error')
+      // 出错时确保遮罩也关闭
+      setScreenshotMode(false)
+    }
+    // 注意：成功时 setScreenshotMode(false) 已在截图前调用
+  }, [editor, addToast])
+
+  // AI 生图处理
+  const handleImageGeneration = useCallback(async (
+    cmd: ReturnType<typeof parseImageCommand>,
+    screenshotBase64?: string
+  ) => {
+    console.log('[handleImageGeneration] called with:', { prompt: cmd.prompt, hasScreenshot: !!screenshotBase64 })
+    if (!editor) {
+      console.log('[handleImageGeneration] no editor, returning')
+      return
+    }
+
+    // 1. 检查 API Key
+    if (!getNebulaApiKey()) {
+      console.log('[handleImageGeneration] no API key, showing dialog')
+      setShowApiKeyDialog(true)
+      addToast('请先配置生图 API Key', 'info')
+      return
+    }
+
+    // 2. 确定模型和参数
+    const model = (cmd.modelId && IMAGE_MODELS.find(m => m.id === cmd.modelId)) || DEFAULT_MODEL
+    const aspectRatio = cmd.aspectRatio || '1:1'
+    const count = cmd.count || 1
+
+    // 3. 计算占位尺寸和位置
+    const centerPage = getViewportCenter(editor)
+    const imageSize = getImageSizeFromAspectRatio(aspectRatio, 320)
+    const layout = calculateGridLayout(centerPage, imageSize, count, 20)
+
+    // 4. 创建占位 shapes
+    const batchId = `imggen-${Date.now()}`
+    const shapeIds: TLShapeId[] = []
+
+    for (let i = 0; i < count; i++) {
+      const shapeId = createShapeId()
+      const pos = getGridPosition(layout.startX, layout.startY, i, imageSize, layout.is2x2, 20)
+
+      editor.createShape(createAIImageShapeProps({
+        id: shapeId,
+        x: pos.x,
+        y: pos.y,
+        w: imageSize.width,
+        h: imageSize.height,
+        url: '', // 空 url → 占位渲染
+        prompt: cmd.prompt,
+        model: model.name,
+      }))
+
+      shapeIds.push(shapeId)
+    }
+
+    // 计算图像生成区域的总边界，用于 AIWorkingZone 显示
+    let minX = layout.startX
+    let minY = layout.startY
+    let maxX = layout.startX
+    let maxY = layout.startY
+
+    for (let i = 0; i < count; i++) {
+      const pos = getGridPosition(layout.startX, layout.startY, i, imageSize, layout.is2x2, 20)
+      minX = Math.min(minX, pos.x)
+      minY = Math.min(minY, pos.y)
+      maxX = Math.max(maxX, pos.x + imageSize.width)
+      maxY = Math.max(maxY, pos.y + imageSize.height)
+    }
+
+    const padding = 40
+    setImageGenerationZoneBounds({
+      x: minX - padding,
+      y: minY - padding,
+      w: maxX - minX + padding * 2,
+      h: maxY - minY + padding * 2,
+    })
+
+    // 5. 逐个生成图片
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < count; i++) {
+      const shapeId = shapeIds[i]
+
+      try {
+        const result = await generateImage({
+          prompt: cmd.prompt,
+          modelId: model.id,
+          aspectRatio,
+          imageSize: (cmd.imageSize as GeminiImageSize) || undefined,
+          referenceImages: screenshotBase64 ? [screenshotBase64] : undefined,
+        })
+
+        // base64 → Blob URL → 更新 shape
+        const blobUrl = base64ToBlobUrl(result.base64, result.mimeType)
+        editor.updateShape({
+          id: shapeId,
+          type: 'ai-image',
+          props: { url: blobUrl, model: model.name, generatedAt: Date.now() },
+        } as any)
+
+        successCount++
+      } catch (error: any) {
+        failCount++
+        addToast(`生图失败: ${error?.message || '未知错误'}`, 'error')
+        editor.deleteShapes([shapeId])
+      }
+    }
+
+    // 清除工作区边界
+    setTimeout(() => setImageGenerationZoneBounds(null), 2100)
+
+    // 选中所有生成的图片并显示完成消息
+    const remainingIds = shapeIds.filter(id => {
+      try { return !!editor.getShape(id) } catch { return false }
+    })
+    if (successCount > 0) {
+      editor.select(...remainingIds)
+      addToast(`${successCount}张图片生成完成`, 'success')
+    }
+  }, [editor, addToast, setImageGenerationZoneBounds])
+
+  // 输入栏发送：选中单张卡片时截图 + emit USER_COMMENT_ON_SHAPE，否则走通用 handleAgentMessage
+  const handleInputBarSend = useCallback(async (message: string) => {
+    console.log('[handleInputBarSend] message:', message)
+
+    // 取出截图和从属信息并清除
+    const screenshot = pendingScreenshot
+    const sourceInfo = screenshotSource
+    if (screenshot) {
+      setPendingScreenshot(null)
+      setScreenshotSource(null)
+    }
+
+    // 检测生图指令（/img 前缀）
+    const imgCmd = parseImageCommand(message)
+    console.log('[handleInputBarSend] imgCmd:', imgCmd)
+    if (imgCmd.isImageCommand) {
+      console.log('[handleInputBarSend] detected /img command, calling handleImageGeneration')
+      handleImageGeneration(imgCmd, screenshot || undefined)
+      return
+    }
+
+    // 检测自然语言生图意图（"帮我生一张图"、"画一张星空"等）
+    const imgIntent = detectImageIntent(message)
+    console.log('[handleInputBarSend] imgIntent:', imgIntent)
+    if (imgIntent.isImage) {
+      if (imgIntent.confidence === 'high') {
+        // 高置信度：直接执行生图
+        console.log('[handleInputBarSend] detected HIGH confidence image intent, calling handleImageGeneration')
+        handleImageGeneration({ isImageCommand: true, prompt: imgIntent.prompt }, screenshot || undefined)
+        return
+      } else if (imgIntent.confidence === 'low' && imgIntent.ambiguousType) {
+        // 低置信度：保存待确认状态，显示确认对话框
+        console.log('[handleInputBarSend] detected LOW confidence image intent, showing confirmation')
+        setPendingAmbiguousIntent({
+          message,
+          intent: imgIntent,
+          screenshot: screenshot || undefined,
+        })
+        return
+      }
+      // 中等置信度：也执行生图（但可以根据需要调整）
+      console.log('[handleInputBarSend] detected MEDIUM confidence image intent, calling handleImageGeneration')
+      handleImageGeneration({ isImageCommand: true, prompt: imgIntent.prompt }, screenshot || undefined)
+      return
+    }
+
+    // 检测图片编辑意图（"把猫改成狗"等）—— 需要有截图才触发图生图
+    if (screenshot && sourceInfo) {
+      const editIntent = detectImageEditIntent(message)
+      console.log('[handleInputBarSend] editIntent:', editIntent, 'sourceType:', sourceInfo.shapeType)
+      if (editIntent.isEdit) {
+        // 这是图片编辑请求：以截图为参考图，生成新图片
+        console.log('[handleInputBarSend] detected image edit intent with screenshot, triggering image generation')
+        handleImageGeneration({ isImageCommand: true, prompt: editIntent.prompt }, screenshot)
+        return
+      }
+    }
+
+    // 如果有截图从属信息但不是图片编辑意图，说明是针对非图片类型 shape 的修改（如卡片文字等）
+    if (sourceInfo && screenshot) {
+      agentEvents.emit(AGENT_EVENTS.USER_COMMENT_ON_SHAPE, {
+        shapeId: sourceInfo.shapeId,
+        instruction: message,
+        screenshotBase64: screenshot,
+        regionBounds: sourceInfo.regionBounds,  // 额外传递区域信息
+      })
+      return
+    }
+
+    if (selectedCardForComment) {
+      // 异步截图，不阻塞（截图失败也能用纯文本）
+      const screenshotBase64 = screenshot || await captureShapeScreenshot(selectedCardForComment.id)
+      agentEvents.emit(AGENT_EVENTS.USER_COMMENT_ON_SHAPE, {
+        shapeId: selectedCardForComment.id,
+        instruction: message,
+        screenshotBase64,
+      })
+    } else {
+      handleAgentMessage(message, screenshot || undefined)
+    }
+  }, [selectedCardForComment, handleAgentMessage, handleImageGeneration, captureShapeScreenshot, pendingScreenshot, screenshotSource])
+
   // 视频播放控制：选中时播放，取消选中时暂停
   useEffect(() => {
     // 暂停所有未选中的视频
@@ -485,6 +1244,46 @@ function TldrawAppContent() {
       }
     }
   }, [selectedLayerIds, selectedLayer])
+
+  // 删除感知：监听产品卡片删除
+  useEffect(() => {
+    if (!editor) return
+
+    const unsubscribe = editor.store.listen(() => {
+      const currentPageId = editor.getCurrentPageId()
+      const allShapeIds = editor.getSortedChildIdsForParent(currentPageId)
+      const currentProductCards = new Map<string, { name: string, tags: string[], x: number, y: number }>()
+
+      for (const id of allShapeIds) {
+        const shape = editor.getShape(id)
+        if (shape && (shape as any).type === 'product-card') {
+          const props = (shape as any).props
+          let tags: string[] = []
+          try {
+            tags = JSON.parse(props.tags || '[]')
+          } catch { /* ignore */ }
+          currentProductCards.set(id, { name: props.name || '', tags, x: shape.x, y: shape.y })
+        }
+      }
+
+      // Compare with snapshot to find deletions
+      const snapshot = productCardSnapshotRef.current
+      const deletedCards: { name: string, tags: string[], x: number, y: number }[] = []
+
+      snapshot.forEach((data, id) => {
+        if (!currentProductCards.has(id)) {
+          deletedCards.push(data)
+        }
+      })
+
+      // Update snapshot
+      productCardSnapshotRef.current = currentProductCards
+    }, { source: 'all', scope: 'document' })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [editor, addToast, createComment])
 
   // 键盘快捷键
   useEffect(() => {
@@ -531,6 +1330,16 @@ function TldrawAppContent() {
         return
       }
 
+      // C：进入截图模式
+      if ((e.key === 'c' || e.key === 'C') && !cmdOrCtrl && !e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        console.log('[KeyPress] C pressed, entering screenshot mode')
+        setScreenshotMode(true)
+        addToast('进入截图模式', 'info')
+        return
+      }
+
       // Delete/Backspace：直接删除（不需要确认）
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedLayerIds.length > 0 && editor) {
@@ -573,6 +1382,127 @@ function TldrawAppContent() {
     const position = getViewportCenter(editor)
 
     for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase()
+
+      // MD 文件处理
+      if (ext === 'md' || file.type === 'text/markdown') {
+        const textContent = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (ev) => resolve(ev.target?.result as string)
+          reader.readAsText(file)
+        })
+        const fileSizeStr = file.size < 1024
+          ? `${file.size} B`
+          : file.size < 1024 * 1024
+            ? `${(file.size / 1024).toFixed(1)} KB`
+            : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        const preview = textContent.slice(0, 200)
+
+        const shapeId = createShapeId()
+        editor.createShape({
+          id: shapeId,
+          type: 'doc-card' as any,
+          x: position.x - 140,
+          y: position.y - 70,
+          props: {
+            w: 280,
+            h: 140,
+            fileName: file.name,
+            fileType: 'md',
+            fileContent: textContent,
+            preview,
+            fileSize: fileSizeStr,
+            uploadedAt: Date.now(),
+            summary: '',
+            detail: '',
+            status: 'summarizing',
+            expanded: false,
+          },
+        })
+        editor.select(shapeId)
+        // 触发自动总结
+        agentEvents.emit(AGENT_EVENTS.SUMMARIZE_DOC, { shapeId: shapeId as string })
+        continue
+      }
+
+      // PDF 文件处理
+      if (ext === 'pdf' || file.type === 'application/pdf') {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (ev) => resolve(ev.target?.result as string)
+          reader.readAsDataURL(file)
+        })
+        const fileSizeStr = file.size < 1024
+          ? `${file.size} B`
+          : file.size < 1024 * 1024
+            ? `${(file.size / 1024).toFixed(1)} KB`
+            : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+
+        const shapeId = createShapeId()
+        editor.createShape({
+          id: shapeId,
+          type: 'doc-card' as any,
+          x: position.x - 140,
+          y: position.y - 70,
+          props: {
+            w: 280,
+            h: 140,
+            fileName: file.name,
+            fileType: 'pdf',
+            fileContent: dataUrl,
+            preview: 'PDF 文件，需 Agent 读取',
+            fileSize: fileSizeStr,
+            uploadedAt: Date.now(),
+            summary: '',
+            detail: '',
+            status: 'summarizing',
+            expanded: false,
+          },
+        })
+        editor.select(shapeId)
+        // 触发自动总结
+        agentEvents.emit(AGENT_EVENTS.SUMMARIZE_DOC, { shapeId: shapeId as string })
+        continue
+      }
+
+      // Excel 文件处理
+      if (ext === 'xlsx' || ext === 'xls' || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel') {
+        try {
+          const arrayBuffer = await file.arrayBuffer()
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+          const sheets = workbook.SheetNames.map(name => {
+            const ws = workbook.Sheets[name]
+            const jsonData: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as string[][]
+            const headers = jsonData.length > 0 ? jsonData[0].map(String) : []
+            const rows = jsonData.slice(1).map(row => row.map(String))
+            return { name, headers, rows }
+          }).filter(s => s.headers.length > 0)
+
+          if (sheets.length > 0) {
+            const shapeId = createShapeId()
+            editor.createShape({
+              id: shapeId,
+              type: 'table-card' as any,
+              x: position.x - 240,
+              y: position.y - 100,
+              props: {
+                title: file.name.replace(/\.(xlsx|xls)$/i, ''),
+                headers: JSON.stringify(sheets[0].headers),
+                rows: JSON.stringify(sheets[0].rows),
+                sheets: JSON.stringify(sheets),
+                sourceTaskId: '',
+              },
+            })
+            editor.select(shapeId)
+            addToast(`已导入 ${file.name}（${sheets.length} 个工作表）`, 'success')
+          }
+        } catch (err) {
+          console.error('Excel 解析失败:', err)
+          addToast(`Excel 解析失败: ${file.name}`, 'error')
+        }
+        continue
+      }
+
       if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) continue
 
       const dataUrl = await new Promise<string>((resolve) => {
@@ -662,8 +1592,14 @@ function TldrawAppContent() {
     ed.setCurrentTool('select')
     setEditor(ed)
 
+    // Store editor on window for shape component access
+    ;(window as any).__tldrawEditor = ed
+
     // 启用网格背景
     ed.updateInstanceState({ isGridMode: true })
+
+    // 初始视口：100% 缩放，居中在原点
+    ed.setCamera({ x: 0, y: 0, z: 1 })
 
     // 检查是否有从首页带来的待处理生成任务
     if (pendingGenerationConfigRef.current) {
@@ -682,118 +1618,45 @@ function TldrawAppContent() {
         // 计算网格布局
         const { startX, startY, is2x2 } = calculateGridLayout(centerPage, imageSize, count, gap)
 
-        const newTasks: GenerationTask[] = []
         const batchId = `batch-${Date.now()}`  // 批次ID，用于标识同一批生成的图片
-        const taskId = `task-${Date.now()}`
 
-        // 只创建第一张图的占位符 shape
-        const firstShapeId = createShapeId()
-        const firstShapeX = startX
-        const firstShapeY = startY
+        // 创建所有占位 shape
+        const allShapeIds: string[] = []
+        const isVideoMode = config.mode === 'video'
 
-        const firstConfigWithBatch = {
-          ...config,
-          batchId,
-          batchIndex: 0,
-          batchTotal: count,
-        }
+        for (let i = 0; i < count; i++) {
+          const shapeId = createShapeId()
+          const { x: shapeX, y: shapeY } = getGridPosition(startX, startY, i, imageSize, is2x2, gap)
 
-        ed.createShape(createAIImageShapeProps({
-          id: firstShapeId,
-          x: firstShapeX,
-          y: firstShapeY,
-          w: imageSize.width,
-          h: imageSize.height,
-          url: '',
-          prompt: config.prompt,
-          isVideo: config.mode === 'video',
-          generationConfig: JSON.stringify(firstConfigWithBatch),
-        }))
-
-        ed.select(firstShapeId)
-
-        const newTask: GenerationTask = {
-          id: taskId,
-          shapeId: firstShapeId as string,
-          status: 'generating',
-          progress: 0,
-          config,
-          position: { x: firstShapeX + imageSize.width / 2, y: firstShapeY + imageSize.height / 2 },
-          width: imageSize.width,
-          height: imageSize.height,
-          createdAt: new Date().toISOString(),
-          startedAt: Date.now(),
-          estimatedDuration: 30,
-        }
-        newTasks.push(newTask)
-
-        let progress = 0
-        const interval = setInterval(() => {
-          progress += 5
-          setGenerationTasks(prev =>
-            prev.map(t => t.id === taskId ? { ...t, progress } : t)
-          )
-
-          if (progress >= 100) {
-            clearInterval(interval)
-
-            const isVideoMode = config.mode === 'video'
-            const allShapeIds: string[] = [firstShapeId as string]
-
-            // 更新第一张图的 URL
-            const firstMediaUrl = isVideoMode
-              ? 'https://www.w3schools.com/html/mov_bbb.mp4'
-              : `https://picsum.photos/seed/${Date.now()}/${imageSize.width * 2}/${imageSize.height * 2}`
-
-            ed.updateShape({
-              id: firstShapeId,
-              type: 'ai-image' as const,
-              props: {
-                url: firstMediaUrl,
-                model: config.model,
-                generatedAt: Date.now(),
-              },
-            } as any)
-
-            // 生成完成后创建其他图片
-            for (let i = 1; i < count; i++) {
-              const newShapeId = createShapeId()
-              const { x: shapeX, y: shapeY } = getGridPosition(startX, startY, i, imageSize, is2x2, gap)
-
-              const configWithBatch = {
-                ...config,
-                batchId,
-                batchIndex: i,
-                batchTotal: count,
-              }
-
-              const mediaUrl = isVideoMode
-                ? 'https://www.w3schools.com/html/mov_bbb.mp4'
-                : `https://picsum.photos/seed/${Date.now() + i}/${imageSize.width * 2}/${imageSize.height * 2}`
-
-              ed.createShape(createAIImageShapeProps({
-                id: newShapeId,
-                x: shapeX,
-                y: shapeY,
-                w: imageSize.width,
-                h: imageSize.height,
-                url: mediaUrl,
-                prompt: config.prompt,
-                model: config.model,
-                generatedAt: Date.now(),
-                isVideo: isVideoMode,
-                generationConfig: JSON.stringify(configWithBatch),
-              }))
-
-              allShapeIds.push(newShapeId as string)
-            }
-
-            setGenerationTasks(prev => prev.filter(t => t.id !== taskId))
-            ed.select(...allShapeIds as TLShapeId[])
+          const configWithBatch = {
+            ...config,
+            batchId,
+            batchIndex: i,
+            batchTotal: count,
           }
-        }, 150)
 
-        setGenerationTasks(prev => [...prev, ...newTasks])
+          const mediaUrl = isVideoMode
+            ? 'https://www.w3schools.com/html/mov_bbb.mp4'
+            : `https://picsum.photos/seed/${Date.now() + i}/${imageSize.width * 2}/${imageSize.height * 2}`
+
+          ed.createShape(createAIImageShapeProps({
+            id: shapeId,
+            x: shapeX,
+            y: shapeY,
+            w: imageSize.width,
+            h: imageSize.height,
+            url: mediaUrl,
+            prompt: config.prompt,
+            model: config.model,
+            generatedAt: Date.now(),
+            isVideo: isVideoMode,
+            generationConfig: JSON.stringify(configWithBatch),
+          }))
+
+          allShapeIds.push(shapeId as string)
+        }
+
+        ed.select(...allShapeIds as TLShapeId[])
         setIsBottomDialogExpanded(true)
       }, 200)
     }
@@ -803,6 +1666,124 @@ function TldrawAppContent() {
       const position = point ?? ed.getViewportPageBounds().center
 
       for (const file of files) {
+        const ext = file.name.split('.').pop()?.toLowerCase()
+
+        // MD 文件拖拽
+        if (ext === 'md' || file.type === 'text/markdown') {
+          const textContent = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (ev) => resolve(ev.target?.result as string)
+            reader.readAsText(file)
+          })
+          const fileSizeStr = file.size < 1024
+            ? `${file.size} B`
+            : file.size < 1024 * 1024
+              ? `${(file.size / 1024).toFixed(1)} KB`
+              : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+
+          const shapeId = createShapeId()
+          ed.createShape({
+            id: shapeId,
+            type: 'doc-card' as any,
+            x: position.x - 140,
+            y: position.y - 70,
+            props: {
+              w: 280,
+              h: 140,
+              fileName: file.name,
+              fileType: 'md',
+              fileContent: textContent,
+              preview: textContent.slice(0, 200),
+              fileSize: fileSizeStr,
+              uploadedAt: Date.now(),
+              summary: '',
+              detail: '',
+              status: 'summarizing',
+              expanded: false,
+            },
+          })
+          ed.select(shapeId)
+          agentEvents.emit(AGENT_EVENTS.SUMMARIZE_DOC, { shapeId: shapeId as string })
+          continue
+        }
+
+        // PDF 文件拖拽
+        if (ext === 'pdf' || file.type === 'application/pdf') {
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (ev) => resolve(ev.target?.result as string)
+            reader.readAsDataURL(file)
+          })
+          const fileSizeStr = file.size < 1024
+            ? `${file.size} B`
+            : file.size < 1024 * 1024
+              ? `${(file.size / 1024).toFixed(1)} KB`
+              : `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+
+          const shapeId = createShapeId()
+          ed.createShape({
+            id: shapeId,
+            type: 'doc-card' as any,
+            x: position.x - 140,
+            y: position.y - 70,
+            props: {
+              w: 280,
+              h: 140,
+              fileName: file.name,
+              fileType: 'pdf',
+              fileContent: dataUrl,
+              preview: 'PDF 文件，需 Agent 读取',
+              fileSize: fileSizeStr,
+              uploadedAt: Date.now(),
+              summary: '',
+              detail: '',
+              status: 'summarizing',
+              expanded: false,
+            },
+          })
+          ed.select(shapeId)
+          agentEvents.emit(AGENT_EVENTS.SUMMARIZE_DOC, { shapeId: shapeId as string })
+          continue
+        }
+
+        // Excel 文件拖拽
+        if (ext === 'xlsx' || ext === 'xls' || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.type === 'application/vnd.ms-excel') {
+          try {
+            const arrayBuffer = await file.arrayBuffer()
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+            const sheets = workbook.SheetNames.map(name => {
+              const ws = workbook.Sheets[name]
+              const jsonData: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as string[][]
+              const headers = jsonData.length > 0 ? jsonData[0].map(String) : []
+              const rows = jsonData.slice(1).map(row => row.map(String))
+              return { name, headers, rows }
+            }).filter(s => s.headers.length > 0)
+
+            if (sheets.length > 0) {
+              const shapeId = createShapeId()
+              ed.createShape({
+                id: shapeId,
+                type: 'table-card' as any,
+                x: position.x - 240,
+                y: position.y - 100,
+                props: {
+                  title: file.name.replace(/\.(xlsx|xls)$/i, ''),
+                  headers: JSON.stringify(sheets[0].headers),
+                  rows: JSON.stringify(sheets[0].rows),
+                  sheets: JSON.stringify(sheets),
+                  sourceTaskId: '',
+                },
+              })
+              ed.select(shapeId)
+              addToast(`已导入 ${file.name}（${sheets.length} 个工作表）`, 'success')
+            }
+          } catch (err) {
+            console.error('Excel 解析失败:', err)
+            addToast(`Excel 解析失败: ${file.name}`, 'error')
+          }
+          continue
+        }
+
         if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) continue
 
         const dataUrl = await new Promise<string>((resolve) => {
@@ -1012,127 +1993,46 @@ function TldrawAppContent() {
     // 计算网格布局
     const { startX, startY, is2x2 } = calculateGridLayout(centerPage, imageSize, count, gap)
 
-    const newTasks: GenerationTask[] = []
     const batchId = `batch-${Date.now()}`  // 批次ID，用于标识同一批生成的图片
-    const taskId = `task-${Date.now()}`
+    const isVideoMode = config.mode === 'video'
+    const allShapeIds: string[] = []
 
-    // 只创建第一张图的占位符 shape（其他图在生成完成后创建）
-    const firstShapeId = createShapeId()
-    const firstShapeX = startX
-    const firstShapeY = startY
+    // 创建所有占位 shape
+    for (let i = 0; i < count; i++) {
+      const shapeId = createShapeId()
+      const { x: shapeX, y: shapeY } = getGridPosition(startX, startY, i, imageSize, is2x2, gap)
 
-    // 第一张图的配置
-    const firstConfigWithBatch = {
-      ...config,
-      batchId,
-      batchIndex: 0,
-      batchTotal: count,
-    }
-
-    // 创建第一张图的占位符 shape（遮罩会跟随这个 shape 移动）
-    editor.createShape(createAIImageShapeProps({
-      id: firstShapeId,
-      x: firstShapeX,
-      y: firstShapeY,
-      w: imageSize.width,
-      h: imageSize.height,
-      url: '',  // 空 url 表示正在生成
-      prompt: config.prompt,
-      isVideo: config.mode === 'video',
-      generationConfig: JSON.stringify(firstConfigWithBatch),
-    }))
-
-    // 选中第一张图
-    editor.select(firstShapeId)
-
-    // 创建遮罩任务
-    const newTask: GenerationTask = {
-      id: taskId,
-      shapeId: firstShapeId as string,
-      status: 'generating',
-      progress: 0,
-      config,
-      position: { x: firstShapeX + imageSize.width / 2, y: firstShapeY + imageSize.height / 2 },
-      width: imageSize.width,
-      height: imageSize.height,
-      createdAt: new Date().toISOString(),
-      startedAt: Date.now(),
-      estimatedDuration: 30,
-    }
-    newTasks.push(newTask)
-
-    // 进度更新
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += 5
-      setGenerationTasks(prev =>
-        prev.map(t => t.id === taskId ? { ...t, progress } : t)
-      )
-
-      if (progress >= 100) {
-        clearInterval(interval)
-
-        const isVideoMode = config.mode === 'video'
-        const allShapeIds: string[] = [firstShapeId as string]
-
-        // 更新第一张图的 URL
-        const firstMediaUrl = isVideoMode
-          ? 'https://www.w3schools.com/html/mov_bbb.mp4'
-          : `https://picsum.photos/seed/${Date.now()}/${imageSize.width * 2}/${imageSize.height * 2}`
-
-        editor.updateShape({
-          id: firstShapeId,
-          type: 'ai-image' as const,
-          props: {
-            url: firstMediaUrl,
-            model: config.model,
-            generatedAt: Date.now(),
-          },
-        } as any)
-
-        // 生成完成后创建其他图片（从第2张开始）
-        for (let i = 1; i < count; i++) {
-          const newShapeId = createShapeId()
-          const { x: shapeX, y: shapeY } = getGridPosition(startX, startY, i, imageSize, is2x2, gap)
-
-          const configWithBatch = {
-            ...config,
-            batchId,
-            batchIndex: i,
-            batchTotal: count,
-          }
-
-          const mediaUrl = isVideoMode
-            ? 'https://www.w3schools.com/html/mov_bbb.mp4'
-            : `https://picsum.photos/seed/${Date.now() + i}/${imageSize.width * 2}/${imageSize.height * 2}`
-
-          editor.createShape(createAIImageShapeProps({
-            id: newShapeId,
-            x: shapeX,
-            y: shapeY,
-            w: imageSize.width,
-            h: imageSize.height,
-            url: mediaUrl,
-            prompt: config.prompt,
-            model: config.model,
-            generatedAt: Date.now(),
-            isVideo: isVideoMode,
-            generationConfig: JSON.stringify(configWithBatch),
-          }))
-
-          allShapeIds.push(newShapeId as string)
-        }
-
-        // 移除遮罩任务
-        setGenerationTasks(prev => prev.filter(t => t.id !== taskId))
-
-        // 显示完成提示并选中所有生成的图片
-        addToast(`${count}张${isVideoMode ? '视频' : '图片'}生成完成`, 'success')
-        editor.select(...allShapeIds as TLShapeId[])
+      const configWithBatch = {
+        ...config,
+        batchId,
+        batchIndex: i,
+        batchTotal: count,
       }
-    }, 150)
 
-    setGenerationTasks(prev => [...prev, ...newTasks])
+      const mediaUrl = isVideoMode
+        ? 'https://www.w3schools.com/html/mov_bbb.mp4'
+        : `https://picsum.photos/seed/${Date.now() + i}/${imageSize.width * 2}/${imageSize.height * 2}`
+
+      editor.createShape(createAIImageShapeProps({
+        id: shapeId,
+        x: shapeX,
+        y: shapeY,
+        w: imageSize.width,
+        h: imageSize.height,
+        url: mediaUrl,
+        prompt: config.prompt,
+        model: config.model,
+        generatedAt: Date.now(),
+        isVideo: isVideoMode,
+        generationConfig: JSON.stringify(configWithBatch),
+      }))
+
+      allShapeIds.push(shapeId as string)
+    }
+
+    // 显示完成提示并选中所有生成的图片
+    addToast(`${count}张${isVideoMode ? '视频' : '图片'}生成完成`, 'success')
+    editor.select(...allShapeIds as TLShapeId[])
   }, [editor, addToast])
 
   // 删除确认
@@ -1164,116 +2064,6 @@ function TldrawAppContent() {
     })
     addToast(`已下载 ${selectedLayers.length} 个图层`, 'success')
   }, [layers, selectedLayerIds, addToast])
-
-  // ============ Agent 操作画布 ============
-
-  // Agent 发送消息（触发 Agent 执行流程）
-  // 新设计：一轮对话 = 一张卡片，逐步更新 steps 和 currentStep
-  const handleAgentMessage = useCallback((userMessage: string) => {
-    if (!editor) return
-    if (agentSession.status !== 'idle') return
-
-    // 计算画布上的节点数
-    const currentPageId = editor.getCurrentPageId()
-    const allShapes = editor.getSortedChildIdsForParent(currentPageId)
-    const nodeCount = allShapes.length
-
-    // 生成 mock 步骤序列
-    const { steps, summary } = generateMockAgentSteps(userMessage, nodeCount)
-    const turnId = `turn-${Date.now()}`
-
-    setAgentSession(prev => ({
-      ...prev,
-      status: 'thinking',
-      currentActionIndex: 0,
-    }))
-
-    // 清理旧 timers
-    agentTimersRef.current.forEach(t => clearTimeout(t))
-    agentTimersRef.current = []
-
-    // 计算卡片放置位置
-    const centerPage = getViewportCenter(editor)
-    const cardW = 380
-    const cardH = 320
-    const cardX = (nodeCount > 0 ? centerPage.x + 400 : centerPage.x) - cardW / 2
-    const cardY = centerPage.y - cardH / 2
-
-    // 创建一张卡片（初始只有用户消息，steps 为空）
-    const shapeId = createShapeId()
-    editor.createShape({
-      id: shapeId,
-      type: 'agent-card' as any,
-      x: cardX,
-      y: cardY,
-      props: {
-        w: cardW,
-        h: cardH,
-        userMessage,
-        summary: '',
-        steps: '[]',
-        status: 'thinking',
-        currentStep: 0,
-        agentTurnId: turnId,
-        timestamp: Date.now(),
-      },
-    })
-
-    // 移动相机展示卡片
-    const bounds = editor.getShapePageBounds(shapeId as any)
-    if (bounds) {
-      editor.zoomToBounds(
-        { x: bounds.x - 60, y: bounds.y - 60, w: bounds.width + 120, h: bounds.height + 120 },
-        { animation: { duration: 500 } }
-      )
-    }
-
-    // 逐步推入 steps（模拟流式执行）
-    const accumulatedSteps: AgentStep[] = []
-
-    steps.forEach((step, idx) => {
-      const delay = (idx + 1) * 1000 // 每步间隔 1s
-
-      const timer = setTimeout(() => {
-        accumulatedSteps.push(step)
-
-        const isLast = idx === steps.length - 1
-
-        // 更新卡片的 steps 和状态
-        editor.updateShape({
-          id: shapeId,
-          type: 'agent-card' as any,
-          props: {
-            steps: JSON.stringify(accumulatedSteps),
-            currentStep: idx,
-            status: isLast ? 'done' : 'executing',
-            summary: isLast ? summary : '',
-          },
-        } as any)
-
-        // 更新 session 状态
-        setAgentSession(prev => ({
-          ...prev,
-          status: isLast ? 'executing' : 'executing',
-          currentActionIndex: idx,
-        }))
-
-        // 最后一步完成后，延迟重置 session 为 idle
-        if (isLast) {
-          const doneTimer = setTimeout(() => {
-            setAgentSession(prev => ({
-              ...prev,
-              status: 'idle',
-              currentActionIndex: -1,
-            }))
-          }, 600)
-          agentTimersRef.current.push(doneTimer)
-        }
-      }, delay)
-
-      agentTimersRef.current.push(timer)
-    })
-  }, [editor, agentSession.status])
 
   // Remix 操作 - 回填完整生成参数
   const handleRemix = useCallback(() => {
@@ -1466,9 +2256,11 @@ function TldrawAppContent() {
 
   // 处理创建新项目
   const handleCreateProject = useCallback(() => {
+    // Create new project in persistence system
+    const newProject = createProject('Untitled')
+    setProjectId(newProject.id)
     setLayers([])
     setSelectedLayerIds([])
-    setGenerationTasks([])
     setProjectName('Untitled')
     setShowLandingPage(false)
     setShowLoading(true)
@@ -1480,11 +2272,52 @@ function TldrawAppContent() {
   }, [])
 
   // 处理打开项目
-  const handleOpenProject = useCallback((_projectId: string) => {
-    // TODO: 加载项目数据
+  const handleOpenProject = useCallback((projectIdToOpen: string) => {
+    // Load project from localStorage
+    const snapshot = loadProjectSnapshot(projectIdToOpen)
+    if (snapshot) {
+      setProjectId(projectIdToOpen)
+      setProjectName(snapshot.name)
+      // Canvas content will be restored via useCanvasPersistence hook
+    }
     setShowLandingPage(false)
   }, [])
 
+  // 撤销处理
+  const handleUndo = useCallback(() => {
+    if (editor) {
+      editor.undo()
+    }
+  }, [editor])
+
+  // 重做处理
+  const handleRedo = useCallback(() => {
+    if (editor) {
+      editor.redo()
+    }
+  }, [editor])
+
+  // 复制处理
+  const handleDuplicate = useCallback(() => {
+    if (editor) {
+      const selectedIds = editor.getSelectedShapeIds()
+      if (selectedIds.length > 0) {
+        editor.duplicateShapes(selectedIds)
+      }
+    }
+  }, [editor])
+
+  // 使用键盘快捷键 hook
+  useKeyboardShortcuts({
+    editor,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onDelete: () => {
+      // Toast 提示可选
+    },
+    onDuplicate: handleDuplicate,
+    enabled: !showLandingPage && !showLoading,
+  })
 
   // 处理从首页开始生成
   const handleStartGeneration = useCallback((config: GenerationConfig) => {
@@ -1503,21 +2336,7 @@ function TldrawAppContent() {
     }, gridTransitionDuration)
   }, [])
 
-  // 右键菜单项
-  const contextMenuEntries: ContextMenuEntry[] = [
-    {
-      id: 'upload-local',
-      icon: '/assets/icons/image.svg',
-      label: '上传本地档案',
-      onClick: handleUploadLocal,
-    },
-    {
-      id: 'import-library',
-      icon: '/assets/icons/library-icon.svg',
-      label: '从资料库导入',
-      onClick: handleImportFromLibrary,
-    },
-  ]
+  // 右键菜单已移除
 
   // 获取主题画布背景（loading 和 landing 也使用）
   const getThemedCanvasBackground = () => {
@@ -1753,20 +2572,20 @@ function TldrawAppContent() {
           overflow: 'hidden',
           background: 'transparent',
         }}
-        onContextMenu={handleContextMenu}
+        onContextMenu={(e: React.MouseEvent) => e.preventDefault()}
       >
       {/* 隐藏的文件上传输入 */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/*,.md,.pdf,.xlsx,.xls"
         multiple
         style={{ display: 'none' }}
         onChange={handleFileUpload}
       />
 
       {/* tldraw 画布 */}
-      <div style={{ width: '100%', height: '100%' }}>
+      <div ref={tldrawContainerRef} style={{ width: '100%', height: '100%' }}>
         <Tldraw
           shapeUtils={customShapeUtils}
           components={components}
@@ -1775,11 +2594,11 @@ function TldrawAppContent() {
           overrides={{
             // 禁用不需要的工具快捷键
             tools(editor, tools) {
-              // 只保留 select 和 hand 工具，禁用其他工具的快捷键
+              // 只保留 select 和 hand 工具，移除其他工具（包括 text，防止双击空白创建文本框）
               const allowedTools = ['select', 'hand']
               Object.keys(tools).forEach(key => {
                 if (!allowedTools.includes(key)) {
-                  tools[key] = { ...tools[key], kbd: undefined }
+                  delete tools[key]
                 }
               })
               return tools
@@ -1836,6 +2655,8 @@ function TldrawAppContent() {
             onSelectionChange={setSelectedLayerIds}
             onZoomChange={setZoom}
             onCameraChange={setCamera}
+            projectId={projectId}
+            projectName={projectName}
           />
         </Tldraw>
       </div>
@@ -1853,18 +2674,23 @@ function TldrawAppContent() {
         onNewProject={() => {
           setLayers([])
           setSelectedLayerIds([])
-          setGenerationTasks([])
           setProjectName('Untitled')
+          setProjectId(`proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
           if (editor) {
             editor.selectNone()
             const shapes = editor.getCurrentPageShapes()
             editor.deleteShapes(shapes.map(s => s.id))
           }
         }}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onDuplicate={handleDuplicate}
+        onOpenApiKeyDialog={() => setShowApiKeyDialog(true)}
+        hasApiKey={hasApiKey}
       />
 
-      {/* LayerPanel */}
-      <LayerPanel
+      {/* LayerPanel - 暂时隐藏，功能未完善 */}
+      {/* <LayerPanel
         layers={layers}
         selectedLayerIds={selectedLayerIds}
         isOpen={isLayerPanelOpen}
@@ -1875,7 +2701,7 @@ function TldrawAppContent() {
         onLayerDelete={handleLayerDelete}
         onLayerAdd={handleLayerAdd}
         onLayerReorder={handleLayerReorder}
-      />
+      /> */}
 
       {/* BottomDialog - 暂时隐藏，MVP 阶段只用 Agent 输入栏 */}
       {/* <BottomDialog
@@ -1891,15 +2717,41 @@ function TldrawAppContent() {
         isLandingPage={false}
       /> */}
 
+      {/* AI 工作区视觉反馈 - 已改为画布原生 shape，不再需要 overlay */}
+
+      {/* 扫描读取卡片高亮 */}
+      {editor && scanningShapeId && <ScanningOverlay editor={editor} shapeId={scanningShapeId} />}
+
+      {/* 截图模式遮罩 */}
+      {screenshotMode && (
+        <ScreenshotOverlay
+          onCapture={handleScreenshotCapture}
+          onCancel={() => setScreenshotMode(false)}
+        />
+      )}
+
       {/* Agent 输入栏 */}
       <AgentInputBar
-        onSend={handleAgentMessage}
-        isThinking={agentSession.status !== 'idle'}
+        onSend={handleInputBarSend}
+        tasks={agentTasks}
+        selectionContext={{ productCardCount: selectedProductCards.length, totalCount: selectedLayerIds.length }}
+        targetCard={selectedCardForComment}
+        activePrompt={activePrompt}
+        onPromptSelect={handlePromptSelect}
+        onPromptDismiss={handlePromptDismiss}
+        agentMode={agentMode}
+        onModeChange={setAgentMode}
+        hasApiKey={!!getApiKey()}
+        screenshotPreview={pendingScreenshot}
+        onClearScreenshot={() => {
+          setPendingScreenshot(null)
+          setScreenshotSource(null)
+        }}
+        onScreenshotMode={() => setScreenshotMode(true)}
       />
 
-      {/* 选中图层的名称标签和详情图标 - 图层静止时显示，生成中不显示，画布移动时隐藏 */}
-      {!isLayerTransforming && !isCameraPanning && selectedLayerIds.length === 1 && selectedLayerScreenPos && selectedLayer &&
-       !generationTasks.some(t => t.status === 'generating' && t.shapeId === selectedLayer.id) && (
+      {/* 选中图层的名称标签和详情图标 - 图层静止时显示，画布移动时隐藏 */}
+      {!isLayerTransforming && !isCameraPanning && selectedLayerIds.length === 1 && selectedLayerScreenPos && selectedLayer && (
         <div
           style={{
             position: 'fixed',
@@ -1976,8 +2828,7 @@ function TldrawAppContent() {
       )}
 
       {/* 选中图层的工具栏 - 图层静止时显示，生成中不显示，画布移动时隐藏 */}
-      {!isLayerTransforming && !isCameraPanning && selectedLayerIds.length > 0 && selectedLayerScreenPos &&
-       !generationTasks.some(t => t.status === 'generating' && selectedLayerIds.includes(t.shapeId || '')) && (
+      {!isLayerTransforming && !isCameraPanning && selectedLayerIds.length > 0 && selectedLayerScreenPos && (
         <ImageToolbar
           selectedLayers={layers.filter(l => selectedLayerIds.includes(l.id))}
           layerPosition={{
@@ -2001,8 +2852,7 @@ function TldrawAppContent() {
       )}
 
       {/* 详情面板 - 生成中不显示 */}
-      {showDetailPanel && selectedLayer && selectedLayerScreenPos &&
-       !generationTasks.some(t => t.status === 'generating' && t.shapeId === selectedLayer.id) && (
+      {showDetailPanel && selectedLayer && selectedLayerScreenPos && (
         <div
           style={{
             position: 'fixed',
@@ -2037,77 +2887,8 @@ function TldrawAppContent() {
         )
       })()}
 
-      {/* 生成中遮罩 */}
-      {generationTasks
-        .filter(task => task.status === 'generating')
-        .map(task => {
-          // 如果有关联的shape，使用shape的实时位置
-          if (task.shapeId && editor) {
-            const shape = editor.getShape(task.shapeId as TLShapeId)
-            if (shape) {
-              const bounds = editor.getShapePageBounds(shape)
-              if (bounds) {
-                const screenPos = editor.pageToScreen({ x: bounds.x, y: bounds.y })
-                const screenPosEnd = editor.pageToScreen({
-                  x: bounds.x + bounds.width,
-                  y: bounds.y + bounds.height
-                })
-                const screenWidth = screenPosEnd.x - screenPos.x
-                const screenHeight = screenPosEnd.y - screenPos.y
-                const elapsedTime = task.startedAt ? Math.floor((Date.now() - task.startedAt) / 1000) : 0
 
-                return (
-                  <GeneratingOverlay
-                    key={task.id}
-                    position={{ x: screenPos.x, y: screenPos.y }}
-                    width={screenWidth}
-                    height={screenHeight}
-                    progress={task.progress}
-                    taskId={task.id}
-                    elapsedTime={elapsedTime}
-                    estimatedTime={task.estimatedDuration}
-                  />
-                )
-              }
-            }
-          }
-
-          // 降级：使用固定位置
-          const screenPos = canvasToScreen({
-            x: task.position.x - task.width / 2,
-            y: task.position.y - task.height / 2,
-          })
-          const screenPosEnd = canvasToScreen({
-            x: task.position.x + task.width / 2,
-            y: task.position.y + task.height / 2,
-          })
-          const screenWidth = screenPosEnd.x - screenPos.x
-          const screenHeight = screenPosEnd.y - screenPos.y
-          const elapsedTime = task.startedAt ? Math.floor((Date.now() - task.startedAt) / 1000) : 0
-
-          return (
-            <GeneratingOverlay
-              key={task.id}
-              position={{ x: screenPos.x, y: screenPos.y }}
-              width={screenWidth}
-              height={screenHeight}
-              progress={task.progress}
-              taskId={task.id}
-              elapsedTime={elapsedTime}
-              estimatedTime={task.estimatedDuration}
-            />
-          )
-        })}
-
-      {/* 右键菜单 */}
-      {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={contextMenuEntries}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+      {/* 右键菜单已移除 */}
 
       {/* 资料库对话框 */}
       {showLibraryDialog && (
@@ -2118,6 +2899,13 @@ function TldrawAppContent() {
           />
         </Suspense>
       )}
+
+      {/* API Key Dialog */}
+      <ApiKeyDialog
+        open={showApiKeyDialog}
+        onClose={() => setShowApiKeyDialog(false)}
+        onSave={(has) => setHasApiKey(has)}
+      />
 
       {/* Toast */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
@@ -2160,8 +2948,6 @@ function TldrawAppContent() {
           />
         </Suspense>
       )}
-
-      {/* 新手引导已移除 */}
 
       {/* 暗色/亮色模式覆盖样式 */}
       <style>{`
